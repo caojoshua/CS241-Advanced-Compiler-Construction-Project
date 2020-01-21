@@ -1,15 +1,22 @@
+/*
+ * main.cpp
+ * Author: Joshua Cao
+ */
 
-#include "Scanner.h"
+#include "Parser.h"
 
 int main(int argc, char* argv[])
 {
 	for (int i = 1; i < argc; ++i)
 	{
-		Scanner scan(argv[i]);
-		while(scan.tk != eof)
-		{
-			scan.next();		
-		}
+//		LexAnalysis::Scanner scan(argv[i]);
+//		while(scan.tk != LexAnalysis::eof)
+//		{
+//			scan.next();
+//		}
+
+		Parser parser(argv[i]);
+		parser.parse();
 	}	
 
 	return 0;

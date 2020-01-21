@@ -1,19 +1,16 @@
-
-SDIR = src/
-IDIR = include/
-
-TESTCASES = $(wildcard testcases/*.txt)
+#
+# Scanner.h
+# Author: Joshua Cao
+#
 
 CC = g++
-CFLAGS = -g -I $(IDIR)
+CFLAGS = -g -I include/
 
-_SRCS = main.cpp Scanner.cpp
-SRCS = $(patsubst %, $(SDIR)%, $(_SRCS))
+TESTCASES = $(wildcard testcases/*.txt)
+SRCS = $(wildcard src/*.cpp)
+DEPS = $(wildcard include/*.h)
 
-_DEPS = Scanner.h
-DEPS = $(patsubst %, $(IDIR)%, $(_DEPS))
-
-make: $(DEPS) $(SRCS)
+all: $(DEPS) $(SRCS)
 	$(CC) $(SRCS) -o out $(CFLAGS)
 
 runall: out

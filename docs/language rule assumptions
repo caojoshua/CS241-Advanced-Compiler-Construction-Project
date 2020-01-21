@@ -1,0 +1,12 @@
+
+This file lists assumptions on unclear language because they were not explicitly defined.
+
+tokens not found in testcases:
+	=
+	!
+	
+	
+Misc:
+
+-Functions without return statement return constant value 0.
+

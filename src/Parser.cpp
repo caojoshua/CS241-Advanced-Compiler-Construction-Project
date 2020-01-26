@@ -5,7 +5,7 @@
 
 #include "Parser.h"
 
-Parser::Parser(char const* s) : scan(s)
+Parser::Parser(char const* s) : scan(s), valCount(0)
 {
 	scan.next();
 }
@@ -208,7 +208,7 @@ Result Parser::returnStatement()
 	{
 		return expression();
 	}
-	return Result(Result::const_kind, 0);
+	return Result(Result::constKind, 0);
 }
 
 void Parser::assignment()
@@ -320,7 +320,7 @@ Result Parser::value()
 	if (scan.tk == LexAnalysis::num_tk)
 	{
 		mustParse(LexAnalysis::num_tk);
-		return Result(Result::const_kind, scan.num);
+		return Result(Result::constKind, scan.num);
 	}
 	else if (scan.tk == LexAnalysis::call)
 	{
@@ -342,6 +342,28 @@ Result Parser::lvalue()
 	return Result(Result::var, 0);
 }
 
+void Parser::compute(Op op, Result& x, Result& y)
+{
+	if(x.kind == Result::constKind && y.kind == Result::constKind)
+	{
+		switch(op)
+		{
+		case add:
+			x.val += y.val;
+			break;
+		case sub:
+			x.val -= y.val;
+			break;
+		case mul:
+			x.val -= y.val;
+			break;
+		case div:
+			x.val -= y.val;
+			break;
+		}
+	}
+}
+
 void Parser::mustParse(LexAnalysis::Token tk) {
 	if (scan.tk == tk)
 	{
@@ -360,4 +382,9 @@ void Parser::err()
 	std::cerr << "unexpected token '" << LexAnalysis::tkToStr(scan.tk)
 			<< "' in " << scan.fname << ":" << scan.linenum << std::endl;
 	exit(1);
+}
+
+void Parser::assignId(std::string s)
+{
+//	varMap[s] = valCount++;
 }

@@ -10,11 +10,13 @@ TESTCASES = $(wildcard testcases/*.txt)
 SRCS = $(wildcard src/*.cpp)
 DEPS = $(wildcard include/*.h)
 
+EXE = compiler
+
 all: $(DEPS) $(SRCS)
-	$(CC) $(SRCS) -o out $(CFLAGS)
+	$(CC) $(SRCS) -o $(EXE) $(CFLAGS)
 
 runall: out
-	./out $(TESTCASES)
+	./$(EXE) $(TESTCASES)
 
-clean: out
-	rm out
+clean: $(EXE)
+	rm $(EXE)

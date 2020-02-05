@@ -4,6 +4,8 @@
  */
 
 #include "Parser.h"
+#include "SSA.h"
+#include "SSAtoGraphML.h"
 
 int main(int argc, char* argv[])
 {
@@ -16,7 +18,8 @@ int main(int argc, char* argv[])
 //		}
 
 		Parser parser(argv[i]);
-		parser.parse();
+		SSA::Program SSA = parser.parse();
+		GraphML::SSAtoGraphML(SSA, argv[i]);
 	}	
 
 	return 0;

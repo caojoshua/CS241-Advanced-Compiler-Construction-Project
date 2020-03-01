@@ -5,7 +5,8 @@
 
 #include "Parser.h"
 
-Parser::Parser(char const* s) : scan(s), stackOffset(0), func(nullptr), bb(nullptr)
+Parser::Parser(char const* s) :
+	scan(s), stackOffset(0), func(nullptr), currBB(nullptr), joinBB(nullptr)
 {
 	scan.next();
 }
@@ -14,10 +15,10 @@ SSA::Program& Parser::parse() {
 	mustParse(LexAnalysis::main);
 	declarationList();
 	func = new SSA::Func("main");
-	bb = new SSA::BasicBlock();
+	currBB = new SSA::BasicBlock();
 	functionBody();
 	mustParse(LexAnalysis::period);
-	emitBB(bb);
+	emitBB(currBB);
 	IR.emitMain(func);
 	return IR;
 }
@@ -55,7 +56,7 @@ void Parser::function()
 	mustParse(LexAnalysis::func);
 	mustParse(LexAnalysis::id_tk);
 	func = new SSA::Func(scan.id);
-	bb = new SSA::BasicBlock();
+	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)
 	{
 		mustParse(LexAnalysis::open_paren);
@@ -68,7 +69,7 @@ void Parser::function()
 	mustParse(LexAnalysis::semicolon);
 	declarationList();
 	functionBody();
-	emitBB(bb);
+	emitBB(currBB);
 	emitFunc();
 	mustParse(LexAnalysis::semicolon);
 }
@@ -199,12 +200,28 @@ void Parser::ifStatement()
 	mustParse(LexAnalysis::if_tk);
 	conditional();
 	mustParse(LexAnalysis::then);
+	emitBB(currBB);
+	SSA::BasicBlock* origBB = currBB;
+	currBB = new SSA::BasicBlock();
+	joinBB = new SSA::BasicBlock();
+	origBB->setLeft(currBB);
+	currBB->setLeft(joinBB);
 	statementList();
+	emitBB(currBB);
 	if (scan.tk == LexAnalysis::else_tk)
 	{
+		currBB = new SSA::BasicBlock();
+		origBB->setRight(currBB);
 		mustParse(LexAnalysis::else_tk);
 		statementList();
+		emitBB(currBB);
+		currBB->setLeft(joinBB);
 	}
+	else
+	{
+		origBB->setRight(joinBB);
+	}
+	currBB = joinBB;
 	mustParse(LexAnalysis::fi);
 }
 
@@ -278,7 +295,7 @@ SSA::Operand* Parser::callStatement()
 	}
 	SSA::CallOperand* callOp = new SSA::CallOperand(funcName, args);
 	SSA::Instruction* ins = new SSA::Instruction(SSA::call, callOp);
-	emit(bb, ins);
+	emit(currBB, ins);
 	return new SSA::ValOperand(ins);
 }
 
@@ -454,7 +471,7 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 		instruction = new SSA::ValOperand(new SSA::Instruction(SSA::div, x, y));
 		break;
 	}
-	emit(bb, instruction->getInstruction());
+	emit(currBB, instruction->getInstruction());
 	return instruction;
 }
 

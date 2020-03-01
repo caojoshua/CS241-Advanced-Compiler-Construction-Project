@@ -1,0 +1,19 @@
+main
+var a, b, c;
+{
+	// if-else
+	let a <- call InputNum();
+	if a > 0 then
+		let b <- call InputNum()
+	else
+		let a <- a +10
+	fi;
+	call OutputNum(a);
+	
+	// if without the else
+	let a <- call InputNum();
+	if a < 0 then
+		let a <- a * 20
+	fi;
+	call OutputNum(a)
+}.

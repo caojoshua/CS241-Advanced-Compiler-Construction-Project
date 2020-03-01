@@ -46,7 +46,8 @@ private:
 	// variables to keep track of where to emit
 	SSA::Program IR;
 	SSA::Func* func;
-	SSA::BasicBlock* bb;
+	SSA::BasicBlock* currBB;
+	SSA::BasicBlock* joinBB;
 
 	// grammar parsing
 	void function();

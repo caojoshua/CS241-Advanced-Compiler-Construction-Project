@@ -83,6 +83,10 @@ SSA::Operand* const SSA::Instruction::getOperand2()
 	return y;
 }
 
+SSA::BasicBlock::BasicBlock() : left(nullptr), right(nullptr)
+{
+}
+
 SSA::BasicBlock::~BasicBlock()
 {
 	for (Instruction* i : code)
@@ -112,6 +116,26 @@ void SSA::BasicBlock::emit(std::list<Instruction*> ins)
 std::list<SSA::Instruction*> SSA::BasicBlock::getCode()
 {
 	return code;
+}
+
+SSA::BasicBlock* SSA::BasicBlock::getLeft() const
+{
+	return left;
+}
+
+void SSA::BasicBlock::setLeft(BasicBlock *left)
+{
+	this->left = left;
+}
+
+SSA::BasicBlock* SSA::BasicBlock::getRight() const
+{
+	return right;
+}
+
+void SSA::BasicBlock::setRight(BasicBlock *right)
+{
+	this->right = right;
 }
 
 SSA::Func::~Func()

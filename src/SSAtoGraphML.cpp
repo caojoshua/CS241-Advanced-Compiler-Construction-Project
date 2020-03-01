@@ -5,19 +5,44 @@
 
 #include "SSAtoGraphML.h"
 
+
+void GraphML::writeEdge(std::ofstream& f, std::map<SSA::BasicBlock*, std::string>& BBtoNodeId,
+				SSA::BasicBlock* from, SSA::BasicBlock* to, int& edgeId)
+{
+	if (from && to)
+	{
+		std::string str = std::string(EDGE);
+		str.replace(str.find("{id}"), 4, "e" + std::to_string(edgeId));
+		str.replace(str.find("{from}"), 6, BBtoNodeId[from]);
+		str.replace(str.find("{to}"), 4, BBtoNodeId[to]);
+		++edgeId;
+		f << str;
+	}
+}
+
 void GraphML::writeFunc(std::ofstream& f, SSA::Func* func)
 {
 	std::string funcName = func->getName();
+	std::map<SSA::BasicBlock*, std::string> BBtoNodeId;
 	int bbId = 0;
 	f << funcHeaderA << funcName << funcHeaderB;
-	for (SSA::BasicBlock* bb : func->getBBs())
+	std::list<SSA::BasicBlock*> BBs = func->getBBs();
+	for (SSA::BasicBlock* bb : BBs)
 	{
+		BBtoNodeId[bb] = funcName + std::to_string(bbId);
 		f << BBHeaderA << funcName << bbId << BBHeaderB;
 		for (SSA::Instruction* instruction : bb->getCode())
 		{
 			f << std::endl << instruction->toStr();
 		}
+		++bbId;
 		f << BBFooter;
+	}
+	int edgeId = 0;
+	for (SSA::BasicBlock* bb : BBs)
+	{
+		writeEdge(f, BBtoNodeId, bb, bb->getLeft(), edgeId);
+		writeEdge(f, BBtoNodeId, bb, bb->getRight(), edgeId);
 	}
 	f << funcFooter;
 }

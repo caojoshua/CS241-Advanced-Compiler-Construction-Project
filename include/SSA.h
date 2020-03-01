@@ -100,13 +100,20 @@ namespace SSA
 	{
 	private:
 		std::list<Instruction*> code;
+		BasicBlock* left;
+		BasicBlock* right;
 	public:
+		BasicBlock();
 		~BasicBlock();
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
 		void emit(std::list<Instruction*> ins);
 		std::list<Instruction*> getCode();
-	};
+		BasicBlock* getLeft() const;
+		void setLeft(BasicBlock *left);
+		BasicBlock* getRight() const;
+		void setRight(BasicBlock *right);
+};
 
 	class Func
 	{

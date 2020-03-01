@@ -7,6 +7,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <map>
+#include <utility>
 
 #ifndef SSATOGRAPHML_H
 #define SSATOGRAPHML_H
@@ -52,6 +54,10 @@ namespace GraphML
 		"					</data>\n"
 		"				</node>\n";
 
+	static const char* const EDGE =
+		"				<edge id=\"{id}\" source=\"{from}\" target=\"{to}\">\n"
+		"				</edge>\n";
+
 	static const char* const funcFooter =
 		"			</graph>\n"
 		"		</node>\n";
@@ -60,6 +66,8 @@ namespace GraphML
 		"	</graph>\n"
 		"</graphml>\n";
 
+	void writeEdge(std::ofstream& f, std::map<SSA::BasicBlock*, std::string>& BBtoNodeId,
+					SSA::BasicBlock* from, SSA::BasicBlock* to, int& edgeId);
 	void writeFunc(std::ofstream&, SSA::Func* func);
 
 	/**

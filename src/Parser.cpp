@@ -9,6 +9,7 @@ Parser::Parser(char const* s) :
 	scan(s), stackOffset(0), func(nullptr), currBB(nullptr), joinBB(nullptr)
 {
 	scan.next();
+	pushMap();
 }
 
 SSA::Program& Parser::parse() {
@@ -106,12 +107,12 @@ void Parser::varDeclaration()
 void Parser::varDeclareList()
 {
 	mustParse(LexAnalysis::id_tk);
-	varMap[scan.id] = new SSA::ConstOperand(0);
+	assignVarValue(scan.id, new SSA::ConstOperand(0));
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
 		mustParse(LexAnalysis::id_tk);
-		varMap[scan.id] = new SSA::ConstOperand(0);
+		assignVarValue(scan.id, new SSA::ConstOperand(0));
 	}
 }
 
@@ -127,12 +128,12 @@ void Parser::arrayDeclartion() {
 		mustParse(LexAnalysis::close_bracket);
 	} while (scan.tk == LexAnalysis::open_bracket);
 	mustParse(LexAnalysis::id_tk);
-	arrayMap[scan.id] = Array(len);
+//	arrayMapStack[scan.id] = Array(len);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
 		mustParse(LexAnalysis::id_tk);
-		arrayMap[scan.id] = Array(len);
+//		arrayMapStack[scan.id] = Array(len);
 	}
 	mustParse(LexAnalysis::semicolon);
 }
@@ -326,7 +327,7 @@ void Parser::assignment()
 	{
 		mustParse(LexAnalysis::assign);
 		SSA::Operand* op = expression();
-		varMap[varName] = op;
+		assignVarValue(varName, op);
 	}
 }
 
@@ -496,6 +497,64 @@ void Parser::err()
 	exit(1);
 }
 
+void Parser::pushMap()
+{
+	std::unordered_map<std::string, SSA::Operand*> varMap;
+	varMapStack.insert(varMapStack.cbegin(), varMap);
+	std::unordered_map<std::string, Array> arrayMap;
+	arrayMapStack.insert(arrayMapStack.cbegin(), arrayMap);
+}
+
+void Parser::popMap()
+{
+	varMapStack.pop_front();
+	arrayMapStack.pop_front();
+}
+
+void Parser::assignVarValue(std::string id, SSA::Operand *value)
+{
+	varMapStack.front()[id] = value;
+}
+
+void Parser::assignArrayValue(std::string id, SSA::Operand *value, int offset)
+{
+}
+
+SSA::Operand* Parser::getVarValue(std::string id)
+{
+	for (std::unordered_map<std::string, SSA::Operand*> map : varMapStack)
+	{
+		if (map.find(id) != map.end())
+		{
+			if (map[id])
+			{
+				return map[id];
+			}
+			else
+			{
+				std::cerr << scan.fname << ":" << scan.linenum
+						<< ": undefined variable " << id << std::endl;
+				exit(1);
+			}
+		}
+	}
+	std::cerr << scan.fname << ":" << scan.linenum
+						<< ": undeclared variable " << id << std::endl;
+				exit(1);
+}
+
+SSA::Operand* Parser::getArrayValue(std::string id, int index)
+{
+//	if (arrayMapStack.find(id) == arrayMapStack.end())
+//	{
+//		std::cerr << scan.fname << ":" << scan.linenum
+//				<< ": undeclared array variable " << id << std::endl;
+//		exit(1);
+//	}
+//	return arrayMapStack[id].getOperand(index);
+	return nullptr;
+}
+
 void Parser::emitFunc()
 {
 	if(func)
@@ -517,32 +576,4 @@ void Parser::emit(SSA::BasicBlock* bb, SSA::Instruction* ins)
 	{
 		bb->emit(ins);
 	}
-}
-
-SSA::Operand* Parser::getVarValue(std::string id)
-{
-	if (varMap.find(id) == varMap.end())
-	{
-		std::cerr << scan.fname << ":" << scan.linenum
-				<< ": undeclared variable " << id << std::endl;
-		exit(1);
-	}
-	else if (!varMap[id])
-	{
-		std::cerr << scan.fname << ":" << scan.linenum
-				<< ": undefined variable " << id << std::endl;
-		exit(1);
-	}
-	return varMap[id];
-}
-
-SSA::Operand* Parser::getArrayValue(std::string id, int index)
-{
-	if (arrayMap.find(id) == arrayMap.end())
-	{
-		std::cerr << scan.fname << ":" << scan.linenum
-				<< ": undeclared array variable " << id << std::endl;
-		exit(1);
-	}
-	return arrayMap[id].getOperand(index);
 }

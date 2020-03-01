@@ -39,11 +39,11 @@ private:
 	};
 
 	LexAnalysis::Scanner scan;
-	// map source variables to SSA values
-	std::unordered_map<std::string, SSA::Operand*> varMap;
-	std::unordered_map<std::string, Array> arrayMap;
+	// stack of id to value mappings, where index 0 is top of stack
+	std::list<std::unordered_map<std::string, SSA::Operand*>> varMapStack;
+	std::list<std::unordered_map<std::string, Array>> arrayMapStack;
 	int stackOffset;
-	// variables to keep track of where to emit
+	// global variables to keep track of where to emit
 	SSA::Program IR;
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
@@ -69,18 +69,23 @@ private:
 	SSA::Operand* factor();
 	SSA::Operand* value();
 	SSA::Operand* lvalue();
-	// constant folding
 	SSA::Operand* compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y);
 	void mustParse(LexAnalysis::Token tk);
 	void err();
 
-	// IR generating
-	void emitFunc();
-	// need to pass bb because not always emitting in order
-	void emitBB(SSA::BasicBlock* bb);
-	void emit(SSA::BasicBlock* bb, SSA::Instruction* ins);
+	// var mapping
+	// TODO: everything array
+	void pushMap();
+	void popMap();
+	void assignVarValue(std::string id, SSA::Operand* value);
+	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id);
 	SSA::Operand* getArrayValue(std::string id, int offset);
+
+	// IR generating
+	void emitFunc();
+	void emitBB(SSA::BasicBlock* bb);
+	void emit(SSA::BasicBlock* bb, SSA::Instruction* ins);
 public:
 	Parser(char const* s);
 	SSA::Program& parse();

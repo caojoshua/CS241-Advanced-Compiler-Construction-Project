@@ -31,7 +31,7 @@ void GraphML::writeFunc(std::ofstream& f, SSA::Func* func)
 	{
 		BBtoNodeId[bb] = funcName + std::to_string(bbId);
 		f << BBHeaderA << funcName << bbId << BBHeaderB;
-		for (SSA::Instruction* instruction : bb->getCode())
+		for (SSA::Instruction* instruction : bb->getInstructions())
 		{
 			f << std::endl << instruction->toStr();
 		}

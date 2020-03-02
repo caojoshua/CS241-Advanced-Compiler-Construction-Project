@@ -196,6 +196,13 @@ void Parser::whileLoop()
 	mustParse(LexAnalysis::od);
 }
 
+/*
+ * The algorithm for generating if follows these steps (not exactly in order)
+ * 1. emit code for if and else-if blocks
+ * 2. insert phis after generating each block using block's
+ * 	  varmap, which contains all assignments in the node, into the phi list
+ * 3. insert phis into the join basic block using phi list
+ */
 void Parser::ifStatement()
 {
 	mustParse(LexAnalysis::if_tk);
@@ -212,6 +219,7 @@ void Parser::ifStatement()
 	pushMap();
 	joinPhiList.clear();
 	statementList();
+	insertPhisIntoPhiList();
 	popMap();
 	emitBB(currBB);
 	if (scan.tk == LexAnalysis::else_tk)
@@ -221,6 +229,7 @@ void Parser::ifStatement()
 		origBB->setRight(currBB);
 		pushMap();
 		statementList();
+		insertPhisIntoPhiList();
 		popMap();
 		emitBB(currBB);
 		currBB->setLeft(joinBB);
@@ -230,7 +239,7 @@ void Parser::ifStatement()
 		origBB->setRight(joinBB);
 	}
 	currBB = joinBB;
-	insertPhisIntoCurrBB();
+	insertPhisIntoJoinBB();
 	joinPhiList.clear();
 	mustParse(LexAnalysis::fi);
 }
@@ -339,14 +348,6 @@ void Parser::assignment()
 		mustParse(LexAnalysis::assign);
 		SSA::Operand* op = expression();
 		assignVarValue(varName, op);
-		if (joinPhiList[varName])
-		{
-			joinPhiList[varName]->setOperand2(op);
-		}
-		else
-		{
-			joinPhiList[varName] = new SSA::Instruction(SSA::phi, op);
-		}
 	}
 }
 
@@ -580,7 +581,46 @@ SSA::Operand* Parser::getArrayValue(std::string id, int index)
 	return nullptr;
 }
 
-void Parser::insertPhisIntoCurrBB()
+/*
+ * - Store assignments of the top layer variable mapping into the phi list.
+ * - This function should be called AFTER generating control flow basic blocks
+ *   and BEFORE popping the basic block's variable mapping.
+ * - Inserting phis after generating code for a basic block avoids having to update
+ *   the same phi instruction in the case of multiple assigns of the same variable.
+ */
+void Parser::insertPhisIntoPhiList()
+{
+	for (std::pair<std::string, SSA::Operand*> pair : varMapStack.front())
+	{
+		SSA::Operand* operand = pair.second;
+		if (joinPhiList.find(pair.first) != joinPhiList.cend()
+				&& joinPhiList[pair.first])
+		{
+			SSA::Instruction* i = joinPhiList[pair.first];
+			if (!i->getOperand1())
+			{
+				i->setOperand1(operand);
+			}
+			else
+			{
+				i->setOperand2(operand);
+			}
+		}
+		else
+		{
+			joinPhiList[pair.first] = new SSA::Instruction(SSA::phi, operand);
+		}
+	}
+}
+
+/*
+ * - Insert phis from the phi list into the join basic block.
+ * - This function should be called after inserting phis into the phi list
+ *   for each control flow block and popping their maps.
+ * - In the case where a phi only has one argument, this function will insert
+ *   the variable's value from the original value mapping.
+ */
+void Parser::insertPhisIntoJoinBB()
 {
 	for (std::pair<std::string, SSA::Instruction*> phi : joinPhiList)
 	{

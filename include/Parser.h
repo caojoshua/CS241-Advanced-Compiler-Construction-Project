@@ -87,7 +87,8 @@ private:
 	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id);
 	SSA::Operand* getArrayValue(std::string id, int offset);
-	void insertPhisIntoCurrBB();
+	void insertPhisIntoPhiList();
+	void insertPhisIntoJoinBB();
 
 	// IR generating
 	void emitFunc();

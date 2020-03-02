@@ -6,7 +6,8 @@ var a, b, c;
 	if a > 0 then
 		let b <- call InputNum()
 	else
-		let a <- a +10
+		let a <- a +10;
+		let a <- a*20
 	fi;
 	call OutputNum(a);
 	

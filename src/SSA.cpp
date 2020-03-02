@@ -123,7 +123,7 @@ void SSA::BasicBlock::emit(std::list<Instruction*> ins)
 	}
 }
 
-std::list<SSA::Instruction*> SSA::BasicBlock::getCode()
+std::list<SSA::Instruction*>& SSA::BasicBlock::getInstructions()
 {
 	return code;
 }

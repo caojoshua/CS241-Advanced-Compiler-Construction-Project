@@ -110,7 +110,7 @@ namespace SSA
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
 		void emit(std::list<Instruction*> ins);
-		std::list<Instruction*> getCode();
+		std::list<Instruction*>& getInstructions();
 		BasicBlock* getLeft() const;
 		void setLeft(BasicBlock *left);
 		BasicBlock* getRight() const;

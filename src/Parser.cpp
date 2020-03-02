@@ -55,8 +55,8 @@ SSA::Operand* Parser::Array::getOperand(int index)
 void Parser::function()
 {
 	mustParse(LexAnalysis::func);
-	mustParse(LexAnalysis::id_tk);
 	func = new SSA::Func(scan.id);
+	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)
 	{
@@ -106,13 +106,13 @@ void Parser::varDeclaration()
 // TODO: store variables in symbol table
 void Parser::varDeclareList()
 {
-	mustParse(LexAnalysis::id_tk);
 	assignVarValue(scan.id, new SSA::ConstOperand(0));
+	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
-		mustParse(LexAnalysis::id_tk);
 		assignVarValue(scan.id, new SSA::ConstOperand(0));
+		mustParse(LexAnalysis::id_tk);
 	}
 }
 
@@ -127,13 +127,13 @@ void Parser::arrayDeclartion() {
 		len *= scan.num;
 		mustParse(LexAnalysis::close_bracket);
 	} while (scan.tk == LexAnalysis::open_bracket);
-	mustParse(LexAnalysis::id_tk);
 //	arrayMapStack[scan.id] = Array(len);
+	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
-		mustParse(LexAnalysis::id_tk);
 //		arrayMapStack[scan.id] = Array(len);
+		mustParse(LexAnalysis::id_tk);
 	}
 	mustParse(LexAnalysis::semicolon);
 }
@@ -190,10 +190,28 @@ void Parser::statement()
 void Parser::whileLoop()
 {
 	mustParse(LexAnalysis::while_tk);
+	SSA::BasicBlock* orig = currBB;
+	emitBB(orig);
+	currBB = new SSA::BasicBlock();
+	orig->setLeft(currBB);
+	joinBB = currBB;
 	conditional();
+
 	mustParse(LexAnalysis::do_tk);
+	currBB = new SSA::BasicBlock();
+	joinBB->setLeft(currBB);
+	currBB->setRight(joinBB);
+	pushMap();
 	statementList();
+	insertPhisIntoPhiList();
+	popMap();
 	mustParse(LexAnalysis::od);
+
+	insertPhisIntoJoinBB();
+	emitBB(joinBB);
+	emitBB(currBB);
+	currBB = new SSA::BasicBlock();
+	joinBB->setRight(currBB);
 }
 
 /*
@@ -214,7 +232,7 @@ void Parser::ifStatement()
 	currBB = new SSA::BasicBlock();
 	joinBB = new SSA::BasicBlock();
 	origBB->setLeft(currBB);
-	currBB->setLeft(joinBB);
+	currBB->setRight(joinBB);
 
 	pushMap();
 	joinPhiList.clear();
@@ -297,8 +315,8 @@ void Parser::returnStatement()
 SSA::Operand* Parser::callStatement()
 {
 	mustParse(LexAnalysis::call);
-	mustParse(LexAnalysis::id_tk);
 	std::string funcName = scan.id;
+	mustParse(LexAnalysis::id_tk);
 	std::list<SSA::Operand*> args;
 	if (scan.tk == LexAnalysis::open_paren)
 	{
@@ -323,8 +341,8 @@ SSA::Operand* Parser::callStatement()
 void Parser::assignment()
 {
 	mustParse(LexAnalysis::let);
-	mustParse(LexAnalysis::id_tk);
 	std::string varName = scan.id;
+	mustParse(LexAnalysis::id_tk);
 	// array assignment
 	if (scan.tk == LexAnalysis::open_bracket)
 	{
@@ -439,8 +457,8 @@ SSA::Operand* Parser::value()
 
 SSA::Operand* Parser::lvalue()
 {
-	mustParse(LexAnalysis::id_tk);
 	SSA::Operand* op = getVarValue(scan.id);
+	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::open_bracket)
 	{
 		mustParse(LexAnalysis::open_bracket);
@@ -628,7 +646,7 @@ void Parser::insertPhisIntoJoinBB()
 		{
 			phi.second->setOperand2(getVarValue(phi.first));
 		}
-		currBB->emit(phi.second);
+		joinBB->emit(phi.second);
 		assignVarValue(phi.first, new SSA::ValOperand(phi.second));
 	}
 }

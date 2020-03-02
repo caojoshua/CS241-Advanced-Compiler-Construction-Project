@@ -83,6 +83,16 @@ SSA::Operand* const SSA::Instruction::getOperand2()
 	return y;
 }
 
+void SSA::Instruction::setOperand1(Operand* o)
+{
+	x = o;
+}
+
+void SSA::Instruction::setOperand2(Operand* o)
+{
+	y = o;
+}
+
 SSA::BasicBlock::BasicBlock() : left(nullptr), right(nullptr)
 {
 }

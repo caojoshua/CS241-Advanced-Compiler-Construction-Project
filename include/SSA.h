@@ -93,6 +93,8 @@ namespace SSA
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();
+		void setOperand1(Operand* o);
+		void setOperand2(Operand* o);
 	    std::string toStr();
 	};
 

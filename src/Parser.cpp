@@ -201,20 +201,27 @@ void Parser::ifStatement()
 	mustParse(LexAnalysis::if_tk);
 	conditional();
 	mustParse(LexAnalysis::then);
+
 	emitBB(currBB);
 	SSA::BasicBlock* origBB = currBB;
 	currBB = new SSA::BasicBlock();
 	joinBB = new SSA::BasicBlock();
 	origBB->setLeft(currBB);
 	currBB->setLeft(joinBB);
+
+	pushMap();
+	joinPhiList.clear();
 	statementList();
+	popMap();
 	emitBB(currBB);
 	if (scan.tk == LexAnalysis::else_tk)
 	{
+		mustParse(LexAnalysis::else_tk);
 		currBB = new SSA::BasicBlock();
 		origBB->setRight(currBB);
-		mustParse(LexAnalysis::else_tk);
+		pushMap();
 		statementList();
+		popMap();
 		emitBB(currBB);
 		currBB->setLeft(joinBB);
 	}
@@ -223,6 +230,8 @@ void Parser::ifStatement()
 		origBB->setRight(joinBB);
 	}
 	currBB = joinBB;
+	insertPhisIntoCurrBB();
+	joinPhiList.clear();
 	mustParse(LexAnalysis::fi);
 }
 
@@ -328,6 +337,14 @@ void Parser::assignment()
 		mustParse(LexAnalysis::assign);
 		SSA::Operand* op = expression();
 		assignVarValue(varName, op);
+		if (joinPhiList[varName])
+		{
+			joinPhiList[varName]->setOperand2(op);
+		}
+		else
+		{
+			joinPhiList[varName] = new SSA::Instruction(SSA::phi, op);
+		}
 	}
 }
 
@@ -500,8 +517,14 @@ void Parser::err()
 void Parser::pushMap()
 {
 	std::unordered_map<std::string, SSA::Operand*> varMap;
-	varMapStack.insert(varMapStack.cbegin(), varMap);
 	std::unordered_map<std::string, Array> arrayMap;
+	pushMap(varMap, arrayMap);
+}
+
+void Parser::pushMap(std::unordered_map<std::string, SSA::Operand*> varMap,
+					std::unordered_map<std::string, Array> arrayMap)
+{
+	varMapStack.insert(varMapStack.cbegin(), varMap);
 	arrayMapStack.insert(arrayMapStack.cbegin(), arrayMap);
 }
 
@@ -553,6 +576,19 @@ SSA::Operand* Parser::getArrayValue(std::string id, int index)
 //	}
 //	return arrayMapStack[id].getOperand(index);
 	return nullptr;
+}
+
+void Parser::insertPhisIntoCurrBB()
+{
+	for (std::pair<std::string, SSA::Instruction*> phi : joinPhiList)
+	{
+		if (!phi.second->getOperand2())
+		{
+			phi.second->setOperand2(getVarValue(phi.first));
+		}
+		currBB->emit(phi.second);
+		assignVarValue(phi.first, new SSA::ValOperand(phi.second));
+	}
 }
 
 void Parser::emitFunc()

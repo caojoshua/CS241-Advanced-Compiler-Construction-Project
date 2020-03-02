@@ -39,15 +39,19 @@ private:
 	};
 
 	LexAnalysis::Scanner scan;
+
 	// stack of id to value mappings, where index 0 is top of stack
 	std::list<std::unordered_map<std::string, SSA::Operand*>> varMapStack;
 	std::list<std::unordered_map<std::string, Array>> arrayMapStack;
 	int stackOffset;
+
 	// global variables to keep track of where to emit
 	SSA::Program IR;
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
+	std::unordered_map<std::string, SSA::Instruction*> joinPhiList;
+//	std::unordered_map<std::string, Array> joinArrayMap;
 
 	// grammar parsing
 	void function();
@@ -76,11 +80,14 @@ private:
 	// var mapping
 	// TODO: everything array
 	void pushMap();
+	void pushMap(std::unordered_map<std::string, SSA::Operand*> varMap,
+			std::unordered_map<std::string, Array> arrayMap);
 	void popMap();
 	void assignVarValue(std::string id, SSA::Operand* value);
 	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id);
 	SSA::Operand* getArrayValue(std::string id, int offset);
+	void insertPhisIntoCurrBB();
 
 	// IR generating
 	void emitFunc();

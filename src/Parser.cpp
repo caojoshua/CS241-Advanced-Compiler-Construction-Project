@@ -270,6 +270,8 @@ void Parser::conditional()
 		err();
 	}
 	SSA::Operand* y = expression();
+	currBB->emit(new SSA::Instruction(SSA::cmp, x, y));
+	currBB->emit(new SSA::Instruction(op));
 }
 
 void Parser::returnStatement()

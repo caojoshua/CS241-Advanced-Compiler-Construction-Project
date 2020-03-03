@@ -195,21 +195,24 @@ void Parser::whileLoop()
 	currBB = new SSA::BasicBlock();
 	orig->setLeft(currBB);
 	joinBB = currBB;
+	SSA::BasicBlock* oldJoin = joinBB;
+	emitBB(joinBB);
 	conditional();
 
 	mustParse(LexAnalysis::do_tk);
 	currBB = new SSA::BasicBlock();
 	joinBB->setLeft(currBB);
-	currBB->setRight(joinBB);
 	pushMap();
 	statementList();
 	insertPhisIntoPhiList();
 	popMap();
+	joinBB = oldJoin;
+	currBB->setRight(joinBB);
 	mustParse(LexAnalysis::od);
 
-	insertPhisIntoJoinBB();
-	emitBB(joinBB);
 	emitBB(currBB);
+	insertPhisIntoJoinBB();
+	joinPhiList.clear();
 	currBB = new SSA::BasicBlock();
 	joinBB->setRight(currBB);
 }

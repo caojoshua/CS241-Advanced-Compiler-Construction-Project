@@ -1,9 +1,16 @@
 main
-var a, b, c;
+var a, b;
 {
+	// basic while
 	let a <- call InputNum();
 	while b < a do
-		let a <- a + 1
+		let a <- a - 1
 	od;
 	call OutputNum(a)
+	
+	// let a <- call InputNum();
+	// while b < a do
+	//	let b <- b + 1
+	// od;
+	// call OutputNum(b)
 }.

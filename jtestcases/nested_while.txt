@@ -1,0 +1,14 @@
+main
+var a, b;
+{	
+	// double while
+	let a <- call InputNum();
+	while a < 100 do
+		let b <- call InputNum();
+		while b < 100 do
+			call OutputNum(a + b);
+			let b <- b + 1
+		od;
+		let a <- a + 1
+	od
+}.

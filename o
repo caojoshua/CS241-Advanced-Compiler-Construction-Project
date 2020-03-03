@@ -1,0 +1,56 @@
+diff --git a/jtestcases/while_phi.txt b/jtestcases/while_phi.txt
+index c167fd4..189f254 100644
+--- a/jtestcases/while_phi.txt
++++ b/jtestcases/while_phi.txt
+@@ -1,9 +1,16 @@
+ main
+-var a, b, c;
++var a, b;
+ {
++	// basic while
+ 	let a <- call InputNum();
+ 	while b < a do
+-		let a <- a + 1
++		let a <- a - 1
+ 	od;
+ 	call OutputNum(a)
++	
++	// let a <- call InputNum();
++	// while b < a do
++	//	let b <- b + 1
++	// od;
++	// call OutputNum(b)
+ }.
+\ No newline at end of file
+diff --git a/src/Parser.cpp b/src/Parser.cpp
+index 240f588..e428565 100644
+--- a/src/Parser.cpp
++++ b/src/Parser.cpp
+@@ -195,21 +195,24 @@ void Parser::whileLoop()
+ 	currBB = new SSA::BasicBlock();
+ 	orig->setLeft(currBB);
+ 	joinBB = currBB;
++	SSA::BasicBlock* oldJoin = joinBB;
++	emitBB(joinBB);
+ 	conditional();
+ 
+ 	mustParse(LexAnalysis::do_tk);
+ 	currBB = new SSA::BasicBlock();
+ 	joinBB->setLeft(currBB);
+-	currBB->setRight(joinBB);
+ 	pushMap();
+ 	statementList();
+ 	insertPhisIntoPhiList();
+ 	popMap();
++	joinBB = oldJoin;
++	currBB->setRight(joinBB);
+ 	mustParse(LexAnalysis::od);
+ 
+-	insertPhisIntoJoinBB();
+-	emitBB(joinBB);
+ 	emitBB(currBB);
++	insertPhisIntoJoinBB();
++	joinPhiList.clear();
+ 	currBB = new SSA::BasicBlock();
+ 	joinBB->setRight(currBB);
+ }

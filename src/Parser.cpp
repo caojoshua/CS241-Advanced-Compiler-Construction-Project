@@ -604,35 +604,53 @@ SSA::Operand* Parser::getArrayValue(std::string id, int index)
 
 /*
  * - Store assignments of the top layer variable mapping into the phi list.
- * - This function should be called AFTER generating control flow basic blocks
+ * - This function should be called AFTER generating a control flow basic block
  *   and BEFORE popping the basic block's variable mapping.
- * - Inserting phis after generating code for a basic block avoids having to update
- *   the same phi instruction in the case of multiple assigns of the same variable.
+ * - This avoids having to update the same phi instruction in the case of
+ * 	 multiple assigns of the same variable.
  */
 void Parser::insertPhisIntoPhiList()
 {
 	for (std::pair<std::string, SSA::Operand*> pair : varMapStack.front())
 	{
+		std::string varName = pair.first;
 		SSA::Operand* operand = pair.second;
-		if (joinPhiList.find(pair.first) != joinPhiList.cend()
-				&& joinPhiList[pair.first])
+		bool foundPhi = false;
+		for (SSA::PhiInstruction* phi : joinPhiList)
 		{
-			SSA::Instruction* i = joinPhiList[pair.first];
-			if (!i->getOperand1())
+			if (pair.first == phi->getVarName())
 			{
-				i->setOperand1(operand);
-			}
-			else
-			{
-				i->setOperand2(operand);
+				if (!phi->getOperand1())
+				{
+					phi->setOperand1(operand);
+				}
+				else if (!phi->getOperand2())
+				{
+					phi->setOperand2(operand);
+				}
+				foundPhi = true;
+				break;
 			}
 		}
-		else
+		if (!foundPhi)
 		{
-			joinPhiList[pair.first] = new SSA::Instruction(SSA::phi, operand);
+			joinPhiList.push_back(new SSA::PhiInstruction(operand, varName));
 		}
 	}
 }
+
+
+void Parser::updateReferencesToPhi()
+{
+//	for (std::pair<std::string, SSA::Instruction*> phi : joinPhiList)
+//	{
+//		SSA::Operand* old = getVarValue(phi.first);
+//		SSA::Operand* copy = old;
+//		*old = SSA::Operand(*old);
+//		copy = phi.second;
+//	}
+}
+
 
 /*
  * - Insert phis from the phi list into the join basic block.
@@ -643,14 +661,19 @@ void Parser::insertPhisIntoPhiList()
  */
 void Parser::insertPhisIntoJoinBB()
 {
-	for (std::pair<std::string, SSA::Instruction*> phi : joinPhiList)
+	for (SSA::PhiInstruction* phi : joinPhiList)
 	{
-		if (!phi.second->getOperand2())
+		std::string varName = phi->getVarName();
+		if (!phi->getOperand1())
 		{
-			phi.second->setOperand2(getVarValue(phi.first));
+			phi->setOperand1(getVarValue(varName));
 		}
-		joinBB->emit(phi.second);
-		assignVarValue(phi.first, new SSA::ValOperand(phi.second));
+		if (!phi->getOperand2())
+		{
+			phi->setOperand2(getVarValue(varName));
+		}
+		joinBB->emit(phi);
+		assignVarValue(varName, new SSA::ValOperand(phi));
 	}
 }
 

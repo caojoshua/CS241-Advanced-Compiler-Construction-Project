@@ -20,6 +20,11 @@ int SSA::Operand::getConst()
 	return -1;
 }
 
+SSA::Operand* SSA::ValOperand::clone()
+{
+	return new ValOperand(ins);
+}
+
 SSA::Operand::Type SSA::ValOperand::getType()
 {
 	return val;
@@ -28,6 +33,11 @@ SSA::Operand::Type SSA::ValOperand::getType()
 SSA::Instruction* SSA::ValOperand::getInstruction()
 {
 	return ins;
+}
+
+SSA::Operand* SSA::MemAccessOperand::clone()
+{
+	return new MemAccessOperand(memLocation);
 }
 
 SSA::Operand::Type SSA::MemAccessOperand::getType()
@@ -40,9 +50,19 @@ int SSA::MemAccessOperand::getMemLocation()
 	return memLocation;
 }
 
+SSA::Operand* SSA::CallOperand::clone()
+{
+	return new CallOperand(funcName, args);
+}
+
 SSA::Operand::Type SSA::CallOperand::getType()
 {
 	return call;
+}
+
+SSA::Operand* SSA::ConstOperand::clone()
+{
+	return new ConstOperand(constVal);
 }
 
 SSA::Operand::Type SSA::ConstOperand::getType()
@@ -91,6 +111,11 @@ void SSA::Instruction::setOperand1(Operand* o)
 void SSA::Instruction::setOperand2(Operand* o)
 {
 	y = o;
+}
+
+std::string const SSA::PhiInstruction::getVarName()
+{
+	return varName;
 }
 
 SSA::BasicBlock::BasicBlock() : left(nullptr), right(nullptr)
@@ -279,3 +304,5 @@ std::string SSA::Instruction::toStr()
 	}
 	return s;
 }
+
+

@@ -24,6 +24,7 @@ namespace SSA
 		enum Type {val, memAccess, call, constant};
 		Operand() {}
 		virtual ~Operand() {}
+		virtual Operand* clone() = 0;
 		virtual Type getType() = 0;
 		virtual std::string toStr() = 0;
 		virtual Instruction* getInstruction();
@@ -37,6 +38,7 @@ namespace SSA
 		Instruction* ins;
 	public:
 		ValOperand(Instruction* ins) : ins(ins) {}
+		virtual Operand* clone();
 		Type getType();
 		std::string toStr();
 		Instruction* getInstruction();
@@ -44,10 +46,11 @@ namespace SSA
 
 	class MemAccessOperand : public Operand
 	{
-		private:
-			int memLocation;
-		public:
+	private:
+		int memLocation;
+	public:
 		MemAccessOperand(int memLocation) : memLocation(memLocation) {}
+		virtual Operand* clone();
 		Type getType();
 		std::string toStr();
 		int getMemLocation();
@@ -60,19 +63,21 @@ namespace SSA
 		std::list<Operand*> args;
 	public:
 		CallOperand(std::string funcName, std::list<Operand*> args) : funcName(funcName), args(args) {}
+		virtual Operand* clone();
 		Type getType();
 		std::string toStr();
 	};
 
 	class ConstOperand : public Operand
 	{
-		private:
-			int constVal;
-		public:
-			ConstOperand(int constVal) : constVal(constVal) {}
-			Operand::Type getType();
-			std::string toStr();
-			int getConst();
+	private:
+		int constVal;
+	public:
+		ConstOperand(int constVal) : constVal(constVal) {}
+		virtual Operand* clone();
+		Operand::Type getType();
+		std::string toStr();
+		int getConst();
 	};
 
 	class Instruction
@@ -88,14 +93,26 @@ namespace SSA
 		Instruction(Opcode op) : op(op), x(nullptr), y(nullptr), id(idCount++) {};
 		Instruction(Opcode op, Operand* x) : op(op), x(x), y(nullptr), id(idCount++) {};
 		Instruction(Opcode op, Operand* x, Operand* y) : op(op), x(x), y(y), id(idCount++) {};
-		~Instruction();
+		Instruction(const Instruction &other) : Instruction(other.op, other.x, other.y) {}
+		virtual ~Instruction();
 		int const getId();
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();
 		void setOperand1(Operand* o);
 		void setOperand2(Operand* o);
-	    std::string toStr();
+	    virtual std::string toStr();
+	};
+
+	class PhiInstruction : public Instruction
+	{
+	private:
+		std::string varName;
+	public:
+		PhiInstruction(Operand* x, std::string var) : Instruction(phi, x), varName(var) {}
+		PhiInstruction(Operand* x, Operand* y, std::string var) : Instruction(phi, x, y), varName(var) {}
+		PhiInstruction(std::string var) : Instruction(phi), varName(var) {}
+		std::string const getVarName();
 	};
 
 	class BasicBlock

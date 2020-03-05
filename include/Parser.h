@@ -50,7 +50,7 @@ private:
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
-	std::unordered_map<std::string, SSA::Instruction*> joinPhiList;
+	std::list<SSA::PhiInstruction*> joinPhiList;
 //	std::unordered_map<std::string, Array> joinArrayMap;
 
 	// grammar parsing
@@ -87,7 +87,10 @@ private:
 	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id);
 	SSA::Operand* getArrayValue(std::string id, int offset);
+
+	// phi helper functions
 	void insertPhisIntoPhiList();
+	void updateReferencesToPhi();
 	void insertPhisIntoJoinBB();
 
 	// IR generating

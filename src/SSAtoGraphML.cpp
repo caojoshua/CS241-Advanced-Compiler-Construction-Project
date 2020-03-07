@@ -47,11 +47,22 @@ void GraphML::writeFunc(std::ofstream& f, SSA::Func* func)
 	f << funcFooter;
 }
 
-void GraphML::SSAtoGraphML(SSA::Program ssa, char const* s)
+void GraphML::SSAtoGraphML(SSA::Program ssa, char const* c)
 {
-	std::string str = std::string(s);
-	std::size_t found = str.find_last_of("/\\");
-	std::string fname = "graphml/" + str.substr(found+1);
+	std::string outDir = "graphml/";
+	std::string extension = ".graphml";
+	std::string testcaseDir = "testcases/";
+
+	std::string str = std::string(c);
+	std::size_t testcaseDirIndex = str.find(testcaseDir) + testcaseDir.length();
+	str = str.substr(testcaseDirIndex);
+
+	std::size_t fileIndex = str.find_last_of("/\\");
+	system(("mkdir -p " + outDir + str.substr(0, fileIndex)).c_str());
+
+	std::size_t extensionIndex = str.find(".txt");
+	std::string fname = outDir + str.substr(0, extensionIndex) + extension;
+
 	std::ofstream f(fname);
 	if (f)
 	{

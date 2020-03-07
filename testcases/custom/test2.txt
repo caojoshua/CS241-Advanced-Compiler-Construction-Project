@@ -1,8 +1,8 @@
 // This is a test comment
 main
 var a, b, c;
-array [4] x;
+//array [4] x;
 {
-	let a <- x[0];
+	//let a <- x[0];
 	call OutputNum(a)
 }.

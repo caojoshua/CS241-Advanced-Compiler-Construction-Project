@@ -59,12 +59,20 @@ namespace SSA
 	class CallOperand : public Operand
 	{
 	private:
-		std::string funcName;
-		std::list<Operand*> args;
+		struct FunctionCall
+		{
+			std::string funcName;
+			std::list<Operand*> args;
+		};
+		FunctionCall* f;
 	public:
-		CallOperand(std::string funcName, std::list<Operand*> args) : funcName(funcName), args(args) {}
+		CallOperand(FunctionCall* f) : f(f) {}
+		CallOperand(std::string funcName, std::list<Operand*> args);
 		virtual Operand* clone();
 		Type getType();
+		std::string getFuncName() const;
+		std::list<Operand*> getArgs() const;
+		void setArgs(std::list<Operand*> args);
 		std::string toStr();
 	};
 
@@ -127,6 +135,7 @@ namespace SSA
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
 		void emit(std::list<Instruction*> ins);
+		void emitFront(Instruction* ins);
 		std::list<Instruction*>& getInstructions();
 		BasicBlock* getLeft() const;
 		void setLeft(BasicBlock *left);

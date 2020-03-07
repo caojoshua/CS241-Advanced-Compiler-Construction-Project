@@ -50,14 +50,36 @@ int SSA::MemAccessOperand::getMemLocation()
 	return memLocation;
 }
 
+SSA::CallOperand::CallOperand(std::string funcName, std::list<Operand*> args)
+{
+	f = new FunctionCall();
+	f->funcName = funcName;
+	f->args = args;
+}
+
 SSA::Operand* SSA::CallOperand::clone()
 {
-	return new CallOperand(funcName, args);
+	return new CallOperand(f);
 }
 
 SSA::Operand::Type SSA::CallOperand::getType()
 {
 	return call;
+}
+
+std::string SSA::CallOperand::getFuncName() const
+{
+	return f->funcName;
+}
+
+std::list<SSA::Operand*> SSA::CallOperand::getArgs() const
+{
+	return f->args;
+}
+
+void SSA::CallOperand::setArgs(std::list<SSA::Operand*> args)
+{
+	f->args = args;
 }
 
 SSA::Operand* SSA::ConstOperand::clone()
@@ -146,6 +168,11 @@ void SSA::BasicBlock::emit(std::list<Instruction*> ins)
 	{
 		emit(i);
 	}
+}
+
+void SSA::BasicBlock::emitFront(Instruction *ins)
+{
+	code.push_front(ins);
 }
 
 std::list<SSA::Instruction*>& SSA::BasicBlock::getInstructions()
@@ -278,8 +305,8 @@ std::string SSA::MemAccessOperand::toStr()
 
 std::string SSA::CallOperand::toStr()
 {
-	std::string s = funcName + "(";
-	for (Operand* o : args)
+	std::string s = f->funcName + "(";
+	for (Operand* o : f->args)
 	{
 		s += o->toStr() + ' ';
 	}

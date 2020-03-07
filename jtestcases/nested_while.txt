@@ -10,5 +10,7 @@ var a, b;
 			let b <- b + 1
 		od;
 		let a <- a + 1
-	od
+	od;
+	call OutputNum(a);
+	call OutputNum(b)
 }.

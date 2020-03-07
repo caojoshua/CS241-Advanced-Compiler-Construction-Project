@@ -7,7 +7,9 @@
 #include "SSA.h"
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
+#include <stack>
 
 class Result
 {
@@ -50,6 +52,8 @@ private:
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
+//	std::stack<std::unordered_map<std::string, std::list<SSA::Operand**>>> useChain;
+	std::list<std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>> useChain;
 	std::list<SSA::PhiInstruction*> joinPhiList;
 //	std::unordered_map<std::string, Array> joinArrayMap;
 
@@ -85,13 +89,17 @@ private:
 	void popMap();
 	void assignVarValue(std::string id, SSA::Operand* value);
 	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
-	SSA::Operand* getVarValue(std::string id);
+	SSA::Operand* getVarValue(std::string id, bool fromExpression = true);
 	SSA::Operand* getArrayValue(std::string id, int offset);
 
 	// phi helper functions
+	void pushUseChain();
+	void popUseChain();
+	void insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins);
+	void replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* newOperand,
+			SSA::Instruction* ins, bool left);
 	void insertPhisIntoPhiList();
-	void updateReferencesToPhi();
-	void insertPhisIntoJoinBB();
+	void insertPhisIntoJoinBB(bool loop = false);
 
 	// IR generating
 	void emitFunc();

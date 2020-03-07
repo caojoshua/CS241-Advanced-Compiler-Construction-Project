@@ -53,7 +53,6 @@ private:
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
-//	std::stack<std::unordered_map<std::string, std::list<SSA::Operand**>>> useChain;
 	std::list<std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>> useChain;
 	std::list<SSA::PhiInstruction*> joinPhiList;
 //	std::unordered_map<std::string, Array> joinArrayMap;
@@ -78,6 +77,7 @@ private:
 	SSA::Operand* factor();
 	SSA::Operand* value();
 	SSA::Operand* lvalue();
+
 	SSA::Operand* compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y);
 	void mustParse(LexAnalysis::Token tk);
 	void err();

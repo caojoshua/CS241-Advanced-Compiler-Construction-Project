@@ -110,6 +110,7 @@ namespace SSA
 		void setOperand1(Operand* o);
 		void setOperand2(Operand* o);
 	    virtual std::string toStr();
+	    void static resetId();
 	};
 
 	class PhiInstruction : public Instruction

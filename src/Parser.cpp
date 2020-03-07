@@ -13,6 +13,7 @@ Parser::Parser(char const* s) :
 }
 
 SSA::Program& Parser::parse() {
+	SSA::Instruction::resetId();
 	mustParse(LexAnalysis::main);
 	declarationList();
 	func = new SSA::Func("main");
@@ -197,13 +198,13 @@ void Parser::whileLoop()
 	joinBB = currBB;
 	SSA::BasicBlock* oldJoin = joinBB;
 	emitBB(joinBB);
+	pushUseChain();
 	conditional();
 
 	mustParse(LexAnalysis::do_tk);
 	currBB = new SSA::BasicBlock();
 	joinBB->setLeft(currBB);
 	pushMap();
-	pushUseChain();
 	statementList();
 	insertPhisIntoPhiList();
 	popMap();
@@ -300,9 +301,17 @@ void Parser::conditional()
 	default:
 		err();
 	}
+
 	SSA::Operand* y = expression();
-	currBB->emit(new SSA::Instruction(SSA::cmp, x, y));
+	SSA::Instruction* ins = new SSA::Instruction(SSA::cmp, x, y);
+	currBB->emit(ins);
 	currBB->emit(new SSA::Instruction(op));
+
+	if (!useChain.empty())
+	{
+		insertIntoUseChain(x, ins);
+		insertIntoUseChain(y, ins);
+	}
 }
 
 void Parser::returnStatement()
@@ -507,31 +516,31 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 		return operand;
 	}
 
-	SSA::ValOperand* instruction = nullptr;
+	SSA::Instruction* ins = nullptr;
 	switch(opcode)
 	{
 	case add:
-		instruction = new SSA::ValOperand(new SSA::Instruction(SSA::add, x, y));
+		ins = new SSA::Instruction(SSA::add, x, y);
 		break;
 	case sub:
-		instruction = new SSA::ValOperand(new SSA::Instruction(SSA::sub, x, y));
+		ins = new SSA::Instruction(SSA::sub, x, y);
 		break;
 	case mul:
-		instruction = new SSA::ValOperand(new SSA::Instruction(SSA::mul, x, y));
+		ins = new SSA::Instruction(SSA::mul, x, y);
 		break;
 	case div:
-		instruction = new SSA::ValOperand(new SSA::Instruction(SSA::div, x, y));
+		ins = new SSA::Instruction(SSA::div, x, y);
 		break;
 	}
 
 	if (!useChain.empty())
 	{
-		insertIntoUseChain(x, instruction->getInstruction());
-		insertIntoUseChain(y, instruction->getInstruction());
+		insertIntoUseChain(x, ins);
+		insertIntoUseChain(y, ins);
 	}
 
-	emit(currBB, instruction->getInstruction());
-	return instruction;
+	emit(currBB, ins);
+	return new SSA::ValOperand(ins);
 }
 
 void Parser::mustParse(LexAnalysis::Token tk) {

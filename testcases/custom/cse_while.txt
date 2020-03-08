@@ -1,0 +1,10 @@
+main
+var a, b;
+{
+	// basic while
+	let a <- call InputNum();
+	while b < a do
+		let a <- (a+1) * (a+1)
+	od;
+	call OutputNum(a+1)
+}.

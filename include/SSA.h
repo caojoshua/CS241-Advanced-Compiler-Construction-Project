@@ -21,14 +21,23 @@ namespace SSA
 	class Operand
 	{
 	public:
+		struct FunctionCall
+		{
+			std::string funcName;
+			std::list<Operand*> args;
+		};
+
 		enum Type {val, memAccess, call, constant};
 		Operand() {}
 		virtual ~Operand() {}
 		virtual Operand* clone() = 0;
 		virtual Type getType() = 0;
+		virtual bool equals(Operand* other);
 		virtual std::string toStr() = 0;
+
 		virtual Instruction* getInstruction();
 		virtual int getMemLocation();
+		virtual FunctionCall* getFunctionCall() const;
 		virtual int getConst();
 	};
 
@@ -59,11 +68,6 @@ namespace SSA
 	class CallOperand : public Operand
 	{
 	private:
-		struct FunctionCall
-		{
-			std::string funcName;
-			std::list<Operand*> args;
-		};
 		FunctionCall* f;
 	public:
 		CallOperand(FunctionCall* f) : f(f) {}
@@ -103,6 +107,7 @@ namespace SSA
 		Instruction(Opcode op, Operand* x, Operand* y) : op(op), x(x), y(y), id(idCount++) {};
 		Instruction(const Instruction &other) : Instruction(other.op, other.x, other.y) {}
 		virtual ~Instruction();
+		virtual bool equals(Instruction* other);
 		int const getId();
 		Opcode const getOpcode();
 		Operand* const getOperand1();
@@ -142,7 +147,7 @@ namespace SSA
 		void setLeft(BasicBlock *left);
 		BasicBlock* getRight() const;
 		void setRight(BasicBlock *right);
-};
+	};
 
 	class Func
 	{

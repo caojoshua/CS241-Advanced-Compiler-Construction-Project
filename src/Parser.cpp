@@ -9,7 +9,8 @@ Parser::Parser(char const* s) :
 	scan(s), stackOffset(0), func(nullptr), currBB(nullptr), joinBB(nullptr)
 {
 	scan.next();
-	pushMap();
+	pushVarMap();
+	pushCSEmap();
 }
 
 SSA::Program& Parser::parse() {
@@ -204,10 +205,12 @@ void Parser::whileLoop()
 	mustParse(LexAnalysis::do_tk);
 	currBB = new SSA::BasicBlock();
 	joinBB->setLeft(currBB);
-	pushMap();
+	pushVarMap();
+	pushCSEmap();
 	statementList();
 	insertPhisIntoPhiList();
-	popMap();
+	popVarMap();
+	popCSEmap();
 	joinBB = oldJoin;
 	currBB->setRight(joinBB);
 	mustParse(LexAnalysis::od);
@@ -239,21 +242,26 @@ void Parser::ifStatement()
 	origBB->setLeft(currBB);
 	currBB->setRight(joinBB);
 
-	pushMap();
+	pushVarMap();
+	pushCSEmap();
 	joinPhiList.clear();
 	statementList();
 	insertPhisIntoPhiList();
-	popMap();
+	popVarMap();
+	popCSEmap();
 	emitBB(currBB);
+
 	if (scan.tk == LexAnalysis::else_tk)
 	{
 		mustParse(LexAnalysis::else_tk);
 		currBB = new SSA::BasicBlock();
 		origBB->setRight(currBB);
-		pushMap();
+		pushVarMap();
+		pushCSEmap();
 		statementList();
 		insertPhisIntoPhiList();
-		popMap();
+		popVarMap();
+		popCSEmap();
 		emitBB(currBB);
 		currBB->setLeft(joinBB);
 	}
@@ -304,6 +312,13 @@ void Parser::conditional()
 
 	SSA::Operand* y = expression();
 	SSA::Instruction* ins = new SSA::Instruction(SSA::cmp, x, y);
+	SSA::Instruction* cse = cseCheck(ins);
+	if (cse != ins)
+	{
+		return;
+	}
+	ins = cse;
+
 	currBB->emit(ins);
 	currBB->emit(new SSA::Instruction(op));
 
@@ -516,22 +531,30 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 		return operand;
 	}
 
-	SSA::Instruction* ins = nullptr;
+	SSA::Opcode op;
 	switch(opcode)
 	{
 	case add:
-		ins = new SSA::Instruction(SSA::add, x, y);
+		op = SSA::add;
 		break;
 	case sub:
-		ins = new SSA::Instruction(SSA::sub, x, y);
+		op = SSA::sub;
 		break;
 	case mul:
-		ins = new SSA::Instruction(SSA::mul, x, y);
+		op = SSA::mul;
 		break;
 	case div:
-		ins = new SSA::Instruction(SSA::div, x, y);
+		op = SSA::div;
 		break;
 	}
+	SSA::Instruction* ins = new SSA::Instruction(op, x, y);
+
+	SSA::Instruction* cse = cseCheck(ins);
+	if (cse != ins)
+	{
+		return new SSA::ValOperand(cse);
+	}
+	ins = cse;
 
 	if (!useChain.empty())
 	{
@@ -564,21 +587,21 @@ void Parser::err()
 	exit(1);
 }
 
-void Parser::pushMap()
+void Parser::pushVarMap()
 {
 	std::unordered_map<std::string, SSA::Operand*> varMap;
 	std::unordered_map<std::string, Array> arrayMap;
-	pushMap(varMap, arrayMap);
+	pushVarMap(varMap, arrayMap);
 }
 
-void Parser::pushMap(std::unordered_map<std::string, SSA::Operand*> varMap,
+void Parser::pushVarMap(std::unordered_map<std::string, SSA::Operand*> varMap,
 					std::unordered_map<std::string, Array> arrayMap)
 {
 	varMapStack.insert(varMapStack.cbegin(), varMap);
 	arrayMapStack.insert(arrayMapStack.cbegin(), arrayMap);
 }
 
-void Parser::popMap()
+void Parser::popVarMap()
 {
 	varMapStack.pop_front();
 	arrayMapStack.pop_front();
@@ -784,6 +807,46 @@ void Parser::insertPhisIntoJoinBB(bool loop)
 	}
 }
 
+void Parser::pushCSEmap()
+{
+	cseStack.push_front(std::map<SSA::Opcode, std::list<SSA::Instruction*>>());
+}
+
+void Parser::popCSEmap()
+{
+	cseStack.pop_front();
+}
+
+SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
+{
+	SSA::Opcode op = ins->getOpcode();
+
+	// check if same Instruction already exists
+	for (std::map<SSA::Opcode, std::list<SSA::Instruction*>> map : cseStack)
+	{
+		if (map.find(op) != map.cend())
+		{
+			for (SSA::Instruction* cseIns : map[op])
+			{
+				if (ins->equals(cseIns))
+				{
+//					delete ins;
+					return cseIns;
+				}
+			}
+		}
+	}
+
+	// insert the new instruction into the CSE stack and return it
+	std::map<SSA::Opcode, std::list<SSA::Instruction*>>& front = cseStack.front();
+	if (front.find(op) == front.cend())
+	{
+		front[op] = std::list<SSA::Instruction*>();
+	}
+	front[op].push_back(ins);
+	return ins;
+}
+
 void Parser::emitFunc()
 {
 	if(func)
@@ -805,4 +868,5 @@ void Parser::emit(SSA::BasicBlock* bb, SSA::Instruction* ins)
 	{
 		bb->emit(ins);
 	}
+
 }

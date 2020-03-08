@@ -9,8 +9,6 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
-#include <stack>
-#include <cstdlib>
 
 class Result
 {
@@ -53,7 +51,14 @@ private:
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
+
+	// use chain stack to keep track of which instructions to propaget phis into
 	std::list<std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>> useChain;
+
+	// keep track of instructions for CSE
+	std::list<std::map<SSA::Opcode, std::list<SSA::Instruction*>>> cseStack;
+
+	// list of phis to be inserted into join node
 	std::list<SSA::PhiInstruction*> joinPhiList;
 //	std::unordered_map<std::string, Array> joinArrayMap;
 
@@ -84,10 +89,10 @@ private:
 
 	// var mapping
 	// TODO: everything array
-	void pushMap();
-	void pushMap(std::unordered_map<std::string, SSA::Operand*> varMap,
+	void pushVarMap();
+	void pushVarMap(std::unordered_map<std::string, SSA::Operand*> varMap,
 			std::unordered_map<std::string, Array> arrayMap);
-	void popMap();
+	void popVarMap();
 	void assignVarValue(std::string id, SSA::Operand* value);
 	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id, bool fromExpression = true);
@@ -102,7 +107,12 @@ private:
 	void insertPhisIntoPhiList();
 	void insertPhisIntoJoinBB(bool loop = false);
 
-	// IR generating
+	// CSE
+	void pushCSEmap();
+	void popCSEmap();
+	SSA::Instruction* cseCheck(SSA::Instruction* ins);
+
+	// IR emitting
 	void emitFunc();
 	void emitBB(SSA::BasicBlock* bb);
 	void emit(SSA::BasicBlock* bb, SSA::Instruction* ins);

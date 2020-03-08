@@ -5,6 +5,33 @@
 
 #include "SSA.h"
 
+bool SSA::Operand::equals(Operand* other)
+{
+	if (!other)
+	{
+		return false;
+	}
+	else if (getType() == val && other->getType() == val)
+	{
+		// should we be checking raw pointer equality?
+		// if we ever clone instructions, maybe not...
+		return getInstruction() == other->getInstruction();
+	}
+	else if (getType() == memAccess && other->getType() == memAccess)
+	{
+		return getMemLocation() == other->getMemLocation();
+	}
+	else if (getType() == call && other->getType() == call)
+	{
+		return getFunctionCall() == other->getFunctionCall();
+	}
+	else if (getType() == constant && other->getType() == constant)
+	{
+		return getConst() == other->getConst();
+	}
+	return false;
+}
+
 SSA::Instruction* SSA::Operand::getInstruction()
 {
 	return nullptr;
@@ -13,6 +40,11 @@ SSA::Instruction* SSA::Operand::getInstruction()
 int SSA::Operand::getMemLocation()
 {
 	return -1;
+}
+
+SSA::Operand::FunctionCall* SSA::Operand::getFunctionCall() const
+{
+	return nullptr;
 }
 
 int SSA::Operand::getConst()
@@ -103,6 +135,11 @@ SSA::Instruction::~Instruction()
 {
 //	delete x;
 //	delete y;
+}
+
+bool SSA::Instruction::equals(Instruction* other)
+{
+	return op == other->op && x->equals(other->x) && y->equals(other->y);
 }
 
 int const SSA::Instruction::getId()

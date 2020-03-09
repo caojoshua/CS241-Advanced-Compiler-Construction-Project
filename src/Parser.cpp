@@ -6,7 +6,7 @@
 #include "Parser.h"
 
 Parser::Parser(char const* s) :
-	scan(s), stackOffset(0), func(nullptr), currBB(nullptr), joinBB(nullptr)
+	scan(s), func(nullptr), currBB(nullptr), joinBB(nullptr)
 {
 	scan.next();
 	pushVarMap();
@@ -15,6 +15,7 @@ Parser::Parser(char const* s) :
 
 SSA::Program& Parser::parse() {
 	SSA::Instruction::resetId();
+	Array::resetTotalOffset();
 	mustParse(LexAnalysis::main);
 	declarationList();
 	func = new SSA::Func("main");
@@ -28,14 +29,27 @@ SSA::Program& Parser::parse() {
 
 int Parser::Array::totalOffset = 0;
 
-Parser::Array::Array(int length) : offset(totalOffset)
+Parser::Array::Array(std::vector<int> dims) : dims(dims)
 {
-	vals.resize(length);
-	for (int i = 0; i < vals.size(); ++i)
+	int length = 1;
+	for (int dim : dims)
 	{
-		vals[i] = new SSA::ConstOperand(0);
+		length *= dim;
 	}
-	totalOffset -= length * 4;
+	totalOffset -= length * INT_SIZE;
+	offset = totalOffset;
+}
+
+Parser::Array& Parser::Array::operator=(const Array other)
+{
+	offset = other.offset;
+	dims = other.dims;
+	return *this;
+}
+
+void Parser::Array::resetTotalOffset()
+{
+	totalOffset = 0;
 }
 
 int Parser::Array::getOffset()
@@ -43,15 +57,11 @@ int Parser::Array::getOffset()
 	return offset;
 }
 
-void Parser::Array::assign(int index, SSA::Operand* operand)
+std::vector<int> Parser::Array::getDims() const
 {
-	vals[index] = operand;
+	return dims;
 }
 
-SSA::Operand* Parser::Array::getOperand(int index)
-{
-	return vals[index];
-}
 
 // TODO: store function somewhere, still not sure how to handle functions
 void Parser::function()
@@ -77,7 +87,6 @@ void Parser::function()
 	mustParse(LexAnalysis::semicolon);
 }
 
-// TODO
 void Parser::declarationList() {
 	while (true)
 	{
@@ -105,7 +114,6 @@ void Parser::varDeclaration()
 	mustParse(LexAnalysis::semicolon);
 }
 
-// TODO: store variables in symbol table
 void Parser::varDeclareList()
 {
 	assignVarValue(scan.id, new SSA::ConstOperand(0));
@@ -118,23 +126,23 @@ void Parser::varDeclareList()
 	}
 }
 
-// TODO: store array in symbol table
 void Parser::arrayDeclartion() {
 	mustParse(LexAnalysis::array);
-	int len = 1;
+	std::vector<int> dims;
 	do
 	{
 		mustParse(LexAnalysis::open_bracket);
 		mustParse(LexAnalysis::num_tk);
-		len *= scan.num;
+		dims.push_back(scan.num);
 		mustParse(LexAnalysis::close_bracket);
 	} while (scan.tk == LexAnalysis::open_bracket);
-//	arrayMapStack[scan.id] = Array(len);
+
+	arrayMap[scan.id] = Array(dims);
 	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
-//		arrayMapStack[scan.id] = Array(len);
+		arrayMap[scan.id] = Array(dims);
 		mustParse(LexAnalysis::id_tk);
 	}
 	mustParse(LexAnalysis::semicolon);
@@ -383,19 +391,9 @@ void Parser::assignment()
 	// array assignment
 	if (scan.tk == LexAnalysis::open_bracket)
 	{
-		mustParse(LexAnalysis::open_bracket);
-		SSA::Operand* index = expression();
-		mustParse(LexAnalysis::close_bracket);
-		while (scan.tk == LexAnalysis::open_bracket)
-		{
-			mustParse(LexAnalysis::open_bracket);
-			index = compute(mul, index, expression());
-			mustParse(LexAnalysis::close_bracket);
-		}
-		// TODO: add stack_pointer, scan.id_offset, index*4
-		// emit add, adda and store operations
+		SSA::Operand* memLoc = arrayIndexReference();
 		mustParse(LexAnalysis::assign);
-		expression();
+		emit(currBB, new SSA::Instruction(SSA::store, expression(), memLoc));
 	}
 	// var assignment
 	else
@@ -494,15 +492,75 @@ SSA::Operand* Parser::value()
 
 SSA::Operand* Parser::lvalue()
 {
-	SSA::Operand* op = getVarValue(scan.id);
+	std::string name = scan.id;
 	mustParse(LexAnalysis::id_tk);
-	while (scan.tk == LexAnalysis::open_bracket)
+	if (scan.tk == LexAnalysis::open_bracket)
+	{
+		SSA::Operand* memLoc = arrayIndexReference();
+		SSA::Instruction* ins = new SSA::Instruction(SSA::load, memLoc);
+		emit(currBB, ins);
+		return new SSA::ValOperand(ins);
+	}
+	else
+	{
+		return getVarValue(name);
+	}
+}
+
+SSA::Operand* Parser::arrayIndexReference()
+{
+	Array arr = arrayMap[scan.id];
+	std::vector<SSA::Operand*> accessDims;
+
+	// parse the access dimensions
+	do
 	{
 		mustParse(LexAnalysis::open_bracket);
-		expression();
+		accessDims.push_back(expression());
 		mustParse(LexAnalysis::close_bracket);
+	} while (scan.tk == LexAnalysis::open_bracket);
+
+	int numDims = accessDims.size();
+	std::vector<int> arrDims = arr.getDims();
+	int expectedNumDims = arrDims.size();
+
+	if (numDims != expectedNumDims)
+	{
+		std::cerr << scan.fname << ":" << scan.linenum << " Array has " <<
+				expectedNumDims << " but tried to access with " << numDims
+				<< " dimensions" << std::endl;
+			exit(1);
 	}
-	return op;
+
+	// map multidimensional indices to flat row-order index
+	int lastDim = numDims -1;
+	int prod = arrDims[lastDim];
+	SSA::Operand* index = accessDims[lastDim];
+	for (int i = lastDim - 1; i >= 0; --i)
+	{
+		SSA::Operand* o = compute(mul, accessDims[i], new SSA::ConstOperand(prod));
+		index = compute(add, index, o);
+		prod *= arrDims[i];
+	}
+
+//	SSA::Operand* index = new SSA::ConstOperand(1);
+//	for (int i = 0; i < numDims; ++i)
+//	{
+//		if (i == numDims - 1)
+//		{
+//			index = compute(add, index, accessDims[i]);
+//		}
+//		else
+//		{
+//			SSA::Operand* o = compute(mul, accessDims[i], new SSA::ConstOperand(arrDims[i + 1]));
+//			index = compute(add, index, o);
+//		}
+//	}
+
+//	index = compute(sub, index, new SSA::ConstOperand(1));
+	index = compute(mul, index, new SSA::ConstOperand(INT_SIZE));
+	index = compute(add, new SSA::ConstOperand(arr.getOffset()), index);
+	return index;
 }
 
 SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
@@ -589,31 +647,22 @@ void Parser::err()
 
 void Parser::pushVarMap()
 {
-	std::unordered_map<std::string, SSA::Operand*> varMap;
-	std::unordered_map<std::string, Array> arrayMap;
-	pushVarMap(varMap, arrayMap);
+	pushVarMap(std::unordered_map<std::string, SSA::Operand*>());
 }
 
-void Parser::pushVarMap(std::unordered_map<std::string, SSA::Operand*> varMap,
-					std::unordered_map<std::string, Array> arrayMap)
+void Parser::pushVarMap(std::unordered_map<std::string, SSA::Operand*> varMap)
 {
 	varMapStack.insert(varMapStack.cbegin(), varMap);
-	arrayMapStack.insert(arrayMapStack.cbegin(), arrayMap);
 }
 
 void Parser::popVarMap()
 {
 	varMapStack.pop_front();
-	arrayMapStack.pop_front();
 }
 
 void Parser::assignVarValue(std::string id, SSA::Operand *value)
 {
 	varMapStack.front()[id] = value->clone();
-}
-
-void Parser::assignArrayValue(std::string id, SSA::Operand *value, int offset)
-{
 }
 
 SSA::Operand* Parser::getVarValue(std::string id, bool fromExpression)
@@ -638,18 +687,6 @@ SSA::Operand* Parser::getVarValue(std::string id, bool fromExpression)
 	std::cerr << scan.fname << ":" << scan.linenum
 						<< ": undeclared variable " << id << std::endl;
 				exit(1);
-}
-
-SSA::Operand* Parser::getArrayValue(std::string id, int index)
-{
-//	if (arrayMapStack.find(id) == arrayMapStack.end())
-//	{
-//		std::cerr << scan.fname << ":" << scan.linenum
-//				<< ": undeclared array variable " << id << std::endl;
-//		exit(1);
-//	}
-//	return arrayMapStack[id].getOperand(index);
-	return nullptr;
 }
 
 void Parser::pushUseChain()
@@ -830,7 +867,7 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
 			{
 				if (ins->equals(cseIns))
 				{
-//					delete ins;
+					delete ins;
 					return cseIns;
 				}
 			}

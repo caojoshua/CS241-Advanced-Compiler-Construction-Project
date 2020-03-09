@@ -1,0 +1,11 @@
+main
+var x;
+array [10] a;
+{
+	// #-40
+	call OutputNum(a[0]);
+	// #-16
+	let a[6] <- call InputNum();
+	// #-4 
+	call OutputNum(a[9])
+}.

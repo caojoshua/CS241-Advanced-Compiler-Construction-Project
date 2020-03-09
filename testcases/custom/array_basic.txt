@@ -1,0 +1,14 @@
+main
+var i, x, y;
+array [10] a;
+{
+	let i <- call InputNum();
+	let x <- call InputNum();
+	let y <- call InputNum();
+	let a[i] <- x + y;
+	let x <- a[i] + y;
+	if x < y then
+		let y <- a[i]
+	fi;
+	let x <- x + a[i]
+}.

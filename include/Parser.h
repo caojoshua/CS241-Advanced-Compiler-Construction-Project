@@ -10,6 +10,8 @@
 #include <map>
 #include <unordered_map>
 
+const static int INT_SIZE = 4;
+
 class Result
 {
 public:
@@ -30,21 +32,21 @@ private:
 	private:
 		static int totalOffset;
 		int offset;
-		std::vector<SSA::Operand*> vals;
+		std::vector<int> dims;
 	public:
-		Array() : Array(0) {}
-		Array(int length);
+		Array() : offset(totalOffset) {}
+		Array(std::vector<int> dims);
+		Array& operator=(const Array other);
+		static void resetTotalOffset();
 		int getOffset();
-		void assign(int index, SSA::Operand* operand);
-		SSA::Operand* getOperand(int index);
+		std::vector<int> getDims() const;
 	};
 
 	LexAnalysis::Scanner scan;
 
 	// stack of id to value mappings, where index 0 is top of stack
 	std::list<std::unordered_map<std::string, SSA::Operand*>> varMapStack;
-	std::list<std::unordered_map<std::string, Array>> arrayMapStack;
-	int stackOffset;
+	std::unordered_map<std::string, Array> arrayMap;
 
 	// global variables to keep track of where to emit
 	SSA::Program IR;
@@ -60,7 +62,6 @@ private:
 
 	// list of phis to be inserted into join node
 	std::list<SSA::PhiInstruction*> joinPhiList;
-//	std::unordered_map<std::string, Array> joinArrayMap;
 
 	// grammar parsing
 	void function();
@@ -82,21 +83,19 @@ private:
 	SSA::Operand* factor();
 	SSA::Operand* value();
 	SSA::Operand* lvalue();
+	SSA::Operand* arrayIndexReference();
 
+	// parsing helpers
 	SSA::Operand* compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y);
 	void mustParse(LexAnalysis::Token tk);
 	void err();
 
 	// var mapping
-	// TODO: everything array
 	void pushVarMap();
-	void pushVarMap(std::unordered_map<std::string, SSA::Operand*> varMap,
-			std::unordered_map<std::string, Array> arrayMap);
+	void pushVarMap(std::unordered_map<std::string, SSA::Operand*>);
 	void popVarMap();
 	void assignVarValue(std::string id, SSA::Operand* value);
-	void assignArrayValue(std::string id, SSA::Operand* value, int offset);
 	SSA::Operand* getVarValue(std::string id, bool fromExpression = true);
-	SSA::Operand* getArrayValue(std::string id, int offset);
 
 	// phi helper functions
 	void pushUseChain();

@@ -216,7 +216,7 @@ void Parser::whileLoop()
 	pushVarMap();
 	pushCSEmap();
 	statementList();
-	insertPhisIntoPhiList();
+	insertPhis(oldJoin);
 	popVarMap();
 	popCSEmap();
 	joinBB = oldJoin;
@@ -224,8 +224,7 @@ void Parser::whileLoop()
 	mustParse(LexAnalysis::od);
 
 	emitBB(currBB);
-	insertPhisIntoJoinBB(true);
-	joinPhiList.clear();
+	commitPhis(true);
 	currBB = new SSA::BasicBlock();
 	joinBB->setRight(currBB);
 }
@@ -247,17 +246,17 @@ void Parser::ifStatement()
 	SSA::BasicBlock* origBB = currBB;
 	currBB = new SSA::BasicBlock();
 	joinBB = new SSA::BasicBlock();
+	SSA::BasicBlock* oldJoin = joinBB;
 	origBB->setLeft(currBB);
-	currBB->setRight(joinBB);
 
 	pushVarMap();
 	pushCSEmap();
-	joinPhiList.clear();
 	statementList();
-	insertPhisIntoPhiList();
+	insertPhis(oldJoin);
 	popVarMap();
 	popCSEmap();
 	emitBB(currBB);
+	currBB->setRight(oldJoin);
 
 	if (scan.tk == LexAnalysis::else_tk)
 	{
@@ -267,19 +266,20 @@ void Parser::ifStatement()
 		pushVarMap();
 		pushCSEmap();
 		statementList();
-		insertPhisIntoPhiList();
+		insertPhis(oldJoin);
 		popVarMap();
 		popCSEmap();
 		emitBB(currBB);
+		joinBB = oldJoin;
 		currBB->setLeft(joinBB);
 	}
 	else
 	{
+		joinBB = oldJoin;
 		origBB->setRight(joinBB);
 	}
 	currBB = joinBB;
-	insertPhisIntoJoinBB();
-	joinPhiList.clear();
+	commitPhis();
 	mustParse(LexAnalysis::fi);
 }
 
@@ -543,21 +543,6 @@ SSA::Operand* Parser::arrayIndexReference()
 		prod *= arrDims[i];
 	}
 
-//	SSA::Operand* index = new SSA::ConstOperand(1);
-//	for (int i = 0; i < numDims; ++i)
-//	{
-//		if (i == numDims - 1)
-//		{
-//			index = compute(add, index, accessDims[i]);
-//		}
-//		else
-//		{
-//			SSA::Operand* o = compute(mul, accessDims[i], new SSA::ConstOperand(arrDims[i + 1]));
-//			index = compute(add, index, o);
-//		}
-//	}
-
-//	index = compute(sub, index, new SSA::ConstOperand(1));
 	index = compute(mul, index, new SSA::ConstOperand(INT_SIZE));
 	index = compute(add, new SSA::ConstOperand(arr.getOffset()), index);
 	return index;
@@ -756,31 +741,24 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 	}
 }
 
-/*
- * - Store assignments of the top layer variable mapping into the phi list.
- * - This function should be called AFTER generating a control flow basic block
- *   and BEFORE popping the basic block's variable mapping.
- * - This avoids having to update the same phi instruction in the case of
- * 	 multiple assigns of the same variable.
- */
-void Parser::insertPhisIntoPhiList()
+void Parser::insertPhis(SSA::BasicBlock* bb)
 {
 	for (std::pair<std::string, SSA::Operand*> pair : varMapStack.front())
 	{
 		std::string varName = pair.first;
 		SSA::Operand* operand = pair.second;
 		bool foundPhi = false;
-		for (SSA::PhiInstruction* phi : joinPhiList)
+		for (SSA::Instruction* ins : bb->getInstructions())
 		{
-			if (pair.first == phi->getVarName())
+			if (ins->getOpcode() == SSA::phi && pair.first == ins->getVarName())
 			{
-				if (!phi->getOperand1())
+				if (!ins->getOperand1())
 				{
-					phi->setOperand1(operand);
+					ins->setOperand1(operand);
 				}
-				else if (!phi->getOperand2())
+				else if (!ins->getOperand2())
 				{
-					phi->setOperand2(operand);
+					ins->setOperand2(operand);
 				}
 				foundPhi = true;
 				break;
@@ -788,59 +766,54 @@ void Parser::insertPhisIntoPhiList()
 		}
 		if (!foundPhi)
 		{
-			joinPhiList.push_back(new SSA::PhiInstruction(operand, varName));
+			bb->emitFront(new SSA::PhiInstruction(operand, varName));
 		}
 	}
 }
 
-/*
- * - Insert phis from the phi list into the join basic block.
- * - This function should be called after inserting phis into the phi list
- *   for each control flow block and popping their maps.
- * - In the case where a phi only has one argument, this function will insert
- *   the variable's value from the original value mapping.
- */
-void Parser::insertPhisIntoJoinBB(bool loop)
+void Parser::commitPhis(bool loop)
 {
-	for (SSA::PhiInstruction* phi : joinPhiList)
+	for (SSA::Instruction* ins : joinBB->getInstructions())
 	{
-		std::string varName = phi->getVarName();
-		SSA::Operand* oldOperand = getVarValue(varName, false);
-
-		// set phi operands to original value if not set
-		if (!phi->getOperand1())
+		if (ins->getOpcode() == SSA::phi)
 		{
-			phi->setOperand1(oldOperand);
-		}
-		if (!phi->getOperand2())
-		{
-			phi->setOperand2(oldOperand);
-		}
+			std::string varName = ins->getVarName();
+			SSA::Operand* oldOperand = getVarValue(varName, false);
 
-		joinBB->emitFront(phi);
-		SSA::ValOperand* newOperand= new SSA::ValOperand(phi);
-
-		// propagate phi values
-		if (loop && !useChain.empty())
-		{
-			for (std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>> useChainLevel : useChain)
+			// set phi operands to original value if not set
+			if (!ins->getOperand1())
 			{
-				for (std::pair<SSA::Operand*, std::list<SSA::Instruction*>> usePair : useChainLevel)
+				ins->setOperand1(oldOperand);
+			}
+			if (!ins->getOperand2())
+			{
+				ins->setOperand2(oldOperand);
+			}
+
+			SSA::ValOperand* newOperand= new SSA::ValOperand(ins);
+
+			// propagate phi values
+			if (loop && !useChain.empty())
+			{
+				for (std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>> useChainLevel : useChain)
 				{
-					if (oldOperand == usePair.first)
+					for (std::pair<SSA::Operand*, std::list<SSA::Instruction*>> usePair : useChainLevel)
 					{
-						for (SSA::Instruction* ins: usePair.second)
+						if (oldOperand == usePair.first)
 						{
-							replaceOldOperandWithPhi(oldOperand, newOperand, ins, true);
-							replaceOldOperandWithPhi(oldOperand, newOperand, ins, false);
+							for (SSA::Instruction* ins: usePair.second)
+							{
+								replaceOldOperandWithPhi(oldOperand, newOperand, ins, true);
+								replaceOldOperandWithPhi(oldOperand, newOperand, ins, false);
+							}
 						}
 					}
 				}
+				popUseChain();
 			}
-			popUseChain();
-		}
 
-		assignVarValue(phi->getVarName(), newOperand);
+			assignVarValue(varName, newOperand);
+		}
 	}
 }
 

@@ -60,9 +60,6 @@ private:
 	// keep track of instructions for CSE
 	std::list<std::map<SSA::Opcode, std::list<SSA::Instruction*>>> cseStack;
 
-	// list of phis to be inserted into join node
-	std::list<SSA::PhiInstruction*> joinPhiList;
-
 	// grammar parsing
 	void function();
 	void declarationList();
@@ -103,8 +100,8 @@ private:
 	void insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins);
 	void replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* newOperand,
 			SSA::Instruction* ins, bool left);
-	void insertPhisIntoPhiList();
-	void insertPhisIntoJoinBB(bool loop = false);
+	void insertPhis(SSA::BasicBlock* bb);
+	void commitPhis(bool loop = false);
 
 	// CSE
 	void pushCSEmap();

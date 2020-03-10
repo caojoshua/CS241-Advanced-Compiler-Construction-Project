@@ -1,0 +1,12 @@
+main
+var a, b, c;
+{
+	// if-else
+	let a <- call InputNum();
+	let b <- call InputNum();
+	if a > b then
+		call OutputNum(a)
+	else
+		call OutputNum(b)
+	fi
+}.

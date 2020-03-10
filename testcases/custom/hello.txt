@@ -1,8 +1,7 @@
 // This is a test comment
 main
-var a, b, c;
-//array [4] x;
+var a;
 {
-	//let a <- x[0];
+	let a <- 100;
 	call OutputNum(a)
 }.

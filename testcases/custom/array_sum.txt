@@ -1,0 +1,12 @@
+main
+var i, sum;
+array [10] a;
+{
+	let sum <- 0;
+	let i <- call InputNum();
+	while i < 10 do
+		let sum <- sum + a[i];
+		let i <- i + 1 
+	od;
+	call OutputNum(sum)
+}.

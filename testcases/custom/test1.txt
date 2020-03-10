@@ -1,8 +1,0 @@
-main
-var x, y, z;
-
-{
-	let y <- call InputNum();
-	let x <- x + y+3;
-	let x <- (y+z)*(4*2*x)
-}.

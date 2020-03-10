@@ -162,6 +162,11 @@ SSA::Operand* const SSA::Instruction::getOperand2()
 	return y;
 }
 
+std::string SSA::Instruction::getVarName() const
+{
+	return "";
+}
+
 void SSA::Instruction::setOperand1(Operand* o)
 {
 	x = o;
@@ -177,7 +182,7 @@ void SSA::Instruction::resetId()
 	idCount = 0;
 }
 
-std::string const SSA::PhiInstruction::getVarName()
+std::string SSA::PhiInstruction::getVarName() const
 {
 	return varName;
 }

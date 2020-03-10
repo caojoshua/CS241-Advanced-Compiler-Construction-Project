@@ -1,0 +1,15 @@
+main
+var a, b;
+{
+	let a <- call InputNum();
+	let c <- 1;
+	while b < a do
+		if a == b-1 then
+			call OutputNum(a)
+		else
+			let c <- a * 2
+		fi; 
+		let b <- b + 1
+	od;
+	call OutputNum(a)
+}.

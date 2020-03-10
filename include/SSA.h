@@ -112,6 +112,7 @@ namespace SSA
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();
+		virtual std::string getVarName() const;
 		void setOperand1(Operand* o);
 		void setOperand2(Operand* o);
 	    virtual std::string toStr();
@@ -126,7 +127,7 @@ namespace SSA
 		PhiInstruction(Operand* x, std::string var) : Instruction(phi, x), varName(var) {}
 		PhiInstruction(Operand* x, Operand* y, std::string var) : Instruction(phi, x, y), varName(var) {}
 		PhiInstruction(std::string var) : Instruction(phi), varName(var) {}
-		std::string const getVarName();
+		std::string getVarName() const;
 	};
 
 	class BasicBlock

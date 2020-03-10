@@ -9,6 +9,7 @@
 #include <string>
 #include <list>
 #include <iostream>
+#include <map>
 
 namespace SSA
 {
@@ -16,7 +17,9 @@ namespace SSA
 	enum Opcode {add, sub, mul, div, cmp, adda, load, store, move, phi, end,
 		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call};
 
+	// forward declarations
 	class Instruction;
+	class BasicBlock;
 
 	class Operand
 	{
@@ -27,7 +30,7 @@ namespace SSA
 			std::list<Operand*> args;
 		};
 
-		enum Type {val, memAccess, call, constant};
+		enum Type {val, phi, call, constant};
 		Operand() {}
 		virtual ~Operand() {}
 		virtual Operand* clone() = 0;
@@ -36,8 +39,10 @@ namespace SSA
 		virtual std::string toStr() = 0;
 
 		virtual Instruction* getInstruction();
-		virtual int getMemLocation();
 		virtual FunctionCall* getFunctionCall() const;
+		virtual std::string getVarName() const;
+		virtual std::map<BasicBlock*, Operand*> getPhiArgs() const;
+		virtual void addPhiArg(BasicBlock* b, Operand* o) {}
 		virtual int getConst();
 	};
 
@@ -53,18 +58,6 @@ namespace SSA
 		Instruction* getInstruction();
 	};
 
-	class MemAccessOperand : public Operand
-	{
-	private:
-		int memLocation;
-	public:
-		MemAccessOperand(int memLocation) : memLocation(memLocation) {}
-		virtual Operand* clone();
-		Type getType();
-		std::string toStr();
-		int getMemLocation();
-	};
-
 	class CallOperand : public Operand
 	{
 	private:
@@ -75,8 +68,24 @@ namespace SSA
 		virtual Operand* clone();
 		Type getType();
 		std::string getFuncName() const;
-		std::list<Operand*> getArgs() const;
-		void setArgs(std::list<Operand*> args);
+		std::list<Operand*> getCallArgs() const;
+		void setCallArgs(std::list<Operand*> args);
+		std::string toStr();
+	};
+
+	class PhiOperand : public Operand
+	{
+	private:
+		std::string varName;
+		std::map<BasicBlock*, Operand*> args;
+	public:
+		PhiOperand(std::string varName) : varName(varName) {}
+		PhiOperand(std::string varName, BasicBlock* b, Operand* o);
+		virtual Operand* clone();
+		Type getType();
+		std::string getVarName() const;
+		std::map<BasicBlock*, Operand*> getPhiArgs() const;
+		void addPhiArg(BasicBlock* b, Operand* o);
 		std::string toStr();
 	};
 
@@ -96,7 +105,6 @@ namespace SSA
 	{
 	private:
 		static int idCount;
-		// each instruction has unique id
 		int id;
 		Opcode op;
 		Operand* x;
@@ -112,42 +120,30 @@ namespace SSA
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();
-		virtual std::string getVarName() const;
 		void setOperand1(Operand* o);
 		void setOperand2(Operand* o);
 	    virtual std::string toStr();
 	    void static resetId();
 	};
 
-	class PhiInstruction : public Instruction
-	{
-	private:
-		std::string varName;
-	public:
-		PhiInstruction(Operand* x, std::string var) : Instruction(phi, x), varName(var) {}
-		PhiInstruction(Operand* x, Operand* y, std::string var) : Instruction(phi, x, y), varName(var) {}
-		PhiInstruction(std::string var) : Instruction(phi), varName(var) {}
-		std::string getVarName() const;
-	};
-
 	class BasicBlock
 	{
 	private:
 		std::list<Instruction*> code;
-		BasicBlock* left;
-		BasicBlock* right;
+		std::list<BasicBlock*> pred;
+		std::list<BasicBlock*> succ;
 	public:
-		BasicBlock();
+		BasicBlock() {}
 		~BasicBlock();
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
 		void emit(std::list<Instruction*> ins);
 		void emitFront(Instruction* ins);
 		std::list<Instruction*>& getInstructions();
-		BasicBlock* getLeft() const;
-		void setLeft(BasicBlock *left);
-		BasicBlock* getRight() const;
-		void setRight(BasicBlock *right);
+		void addPredecessor(BasicBlock* pred);
+		void addSuccessor(BasicBlock* succ);
+		std::list<BasicBlock*> getPredecessors();
+		std::list<BasicBlock*> getSuccessors();
 	};
 
 	class Func

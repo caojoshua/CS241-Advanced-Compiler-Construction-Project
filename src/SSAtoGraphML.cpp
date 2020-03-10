@@ -41,9 +41,11 @@ void GraphML::writeFunc(std::ofstream& f, SSA::Func* func)
 	int edgeId = 0;
 	for (SSA::BasicBlock* bb : BBs)
 	{
-		writeEdge(f, BBtoNodeId, bb, bb->getLeft(), edgeId);
-		writeEdge(f, BBtoNodeId, bb, bb->getRight(), edgeId);
-	}
+		for (SSA::BasicBlock* succ : bb->getSuccessors())
+		{
+			writeEdge(f, BBtoNodeId, bb, succ, edgeId);
+		}
+		}
 	f << funcFooter;
 }
 

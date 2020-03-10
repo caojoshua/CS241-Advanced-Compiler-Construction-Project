@@ -17,13 +17,14 @@ bool SSA::Operand::equals(Operand* other)
 		// if we ever clone instructions, maybe not...
 		return getInstruction() == other->getInstruction();
 	}
-	else if (getType() == memAccess && other->getType() == memAccess)
-	{
-		return getMemLocation() == other->getMemLocation();
-	}
 	else if (getType() == call && other->getType() == call)
 	{
 		return getFunctionCall() == other->getFunctionCall();
+	}
+	else if (getType() == phi && other->getType() == phi)
+	{
+		return (getVarName() == other->getVarName())
+				&& (getPhiArgs() == other->getPhiArgs());
 	}
 	else if (getType() == constant && other->getType() == constant)
 	{
@@ -37,14 +38,19 @@ SSA::Instruction* SSA::Operand::getInstruction()
 	return nullptr;
 }
 
-int SSA::Operand::getMemLocation()
-{
-	return -1;
-}
-
 SSA::Operand::FunctionCall* SSA::Operand::getFunctionCall() const
 {
 	return nullptr;
+}
+
+std::string SSA::Operand::getVarName() const
+{
+	return "";
+}
+
+std::map<SSA::BasicBlock*, SSA::Operand*> SSA::Operand::getPhiArgs() const
+{
+	return std::map<SSA::BasicBlock*, SSA::Operand*>();
 }
 
 int SSA::Operand::getConst()
@@ -65,21 +71,6 @@ SSA::Operand::Type SSA::ValOperand::getType()
 SSA::Instruction* SSA::ValOperand::getInstruction()
 {
 	return ins;
-}
-
-SSA::Operand* SSA::MemAccessOperand::clone()
-{
-	return new MemAccessOperand(memLocation);
-}
-
-SSA::Operand::Type SSA::MemAccessOperand::getType()
-{
-	return memAccess;
-}
-
-int SSA::MemAccessOperand::getMemLocation()
-{
-	return memLocation;
 }
 
 SSA::CallOperand::CallOperand(std::string funcName, std::list<Operand*> args)
@@ -104,14 +95,59 @@ std::string SSA::CallOperand::getFuncName() const
 	return f->funcName;
 }
 
-std::list<SSA::Operand*> SSA::CallOperand::getArgs() const
+std::list<SSA::Operand*> SSA::CallOperand::getCallArgs() const
 {
 	return f->args;
 }
 
-void SSA::CallOperand::setArgs(std::list<SSA::Operand*> args)
+void SSA::CallOperand::setCallArgs(std::list<SSA::Operand*> args)
 {
 	f->args = args;
+}
+
+SSA::PhiOperand::PhiOperand(std::string varName, BasicBlock* b, Operand* o) : varName(varName)
+{
+	addPhiArg(b, o);
+}
+
+SSA::Operand* SSA::PhiOperand::clone()
+{
+	PhiOperand* phi = new PhiOperand(varName);
+	for (std::pair<BasicBlock*, Operand*> arg : args)
+	{
+		phi->addPhiArg(arg.first, arg.second);
+	}
+	return phi;
+}
+
+SSA::Operand::Type SSA::PhiOperand::getType()
+{
+	return phi;
+}
+
+std::string SSA::PhiOperand::getVarName() const
+{
+	return varName;
+}
+
+std::map<SSA::BasicBlock*, SSA::Operand*> SSA::PhiOperand::getPhiArgs() const
+{
+	return args;
+}
+
+void SSA::PhiOperand::addPhiArg(BasicBlock* b, Operand* o)
+{
+	args[b] = o;
+}
+
+std::string SSA::PhiOperand::toStr()
+{
+	std::string s = "";
+	for (std::pair<BasicBlock*, Operand*> pair : args)
+	{
+		s += pair.second->toStr() + " ";
+	}
+	return s + "";
 }
 
 SSA::Operand* SSA::ConstOperand::clone()
@@ -162,11 +198,6 @@ SSA::Operand* const SSA::Instruction::getOperand2()
 	return y;
 }
 
-std::string SSA::Instruction::getVarName() const
-{
-	return "";
-}
-
 void SSA::Instruction::setOperand1(Operand* o)
 {
 	x = o;
@@ -180,15 +211,6 @@ void SSA::Instruction::setOperand2(Operand* o)
 void SSA::Instruction::resetId()
 {
 	idCount = 0;
-}
-
-std::string SSA::PhiInstruction::getVarName() const
-{
-	return varName;
-}
-
-SSA::BasicBlock::BasicBlock() : left(nullptr), right(nullptr)
-{
 }
 
 SSA::BasicBlock::~BasicBlock()
@@ -227,24 +249,24 @@ std::list<SSA::Instruction*>& SSA::BasicBlock::getInstructions()
 	return code;
 }
 
-SSA::BasicBlock* SSA::BasicBlock::getLeft() const
+void SSA::BasicBlock::addPredecessor(BasicBlock* pred)
 {
-	return left;
+	this->pred.push_back(pred);
 }
 
-void SSA::BasicBlock::setLeft(BasicBlock *left)
+void SSA::BasicBlock::addSuccessor(BasicBlock* succ)
 {
-	this->left = left;
+	this->succ.push_back(succ);
 }
 
-SSA::BasicBlock* SSA::BasicBlock::getRight() const
+std::list<SSA::BasicBlock*> SSA::BasicBlock::getPredecessors()
 {
-	return right;
+	return pred;
 }
 
-void SSA::BasicBlock::setRight(BasicBlock *right)
+std::list<SSA::BasicBlock*> SSA::BasicBlock::getSuccessors()
 {
-	this->right = right;
+	return succ;
 }
 
 SSA::Func::~Func()
@@ -343,11 +365,6 @@ std::string SSA::opToStr(Opcode op)
 std::string SSA::ValOperand::toStr()
 {
 	return "(" + std::to_string(ins->getId()) + ")";
-}
-
-std::string SSA::MemAccessOperand::toStr()
-{
-	return "[" + std::to_string(memLocation) + "]";
 }
 
 std::string SSA::CallOperand::toStr()

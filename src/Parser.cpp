@@ -203,7 +203,7 @@ void Parser::whileLoop()
 	SSA::BasicBlock* orig = currBB;
 	emitBB(orig);
 	currBB = new SSA::BasicBlock();
-	orig->setLeft(currBB);
+	linkBB(orig, currBB);
 	joinBB = currBB;
 	SSA::BasicBlock* oldJoin = joinBB;
 	emitBB(joinBB);
@@ -212,21 +212,21 @@ void Parser::whileLoop()
 
 	mustParse(LexAnalysis::do_tk);
 	currBB = new SSA::BasicBlock();
-	joinBB->setLeft(currBB);
+	linkBB(joinBB, currBB);
 	pushVarMap();
 	pushCSEmap();
 	statementList();
-	insertPhis(oldJoin);
+	insertPhis(currBB, oldJoin);
 	popVarMap();
 	popCSEmap();
 	joinBB = oldJoin;
-	currBB->setRight(joinBB);
+	linkBB(currBB, joinBB);
 	mustParse(LexAnalysis::od);
 
 	emitBB(currBB);
-	commitPhis(true);
+	commitPhis(joinBB, true);
 	currBB = new SSA::BasicBlock();
-	joinBB->setRight(currBB);
+	linkBB(joinBB, currBB);
 }
 
 /*
@@ -247,39 +247,39 @@ void Parser::ifStatement()
 	currBB = new SSA::BasicBlock();
 	joinBB = new SSA::BasicBlock();
 	SSA::BasicBlock* oldJoin = joinBB;
-	origBB->setLeft(currBB);
+	linkBB(origBB, currBB);
 
 	pushVarMap();
 	pushCSEmap();
 	statementList();
-	insertPhis(oldJoin);
+	insertPhis(currBB, oldJoin);
 	popVarMap();
 	popCSEmap();
 	emitBB(currBB);
-	currBB->setRight(oldJoin);
+	linkBB(currBB, oldJoin);
 
 	if (scan.tk == LexAnalysis::else_tk)
 	{
 		mustParse(LexAnalysis::else_tk);
 		currBB = new SSA::BasicBlock();
-		origBB->setRight(currBB);
+		linkBB(origBB, currBB);
 		pushVarMap();
 		pushCSEmap();
 		statementList();
-		insertPhis(oldJoin);
+		insertPhis(currBB, oldJoin);
 		popVarMap();
 		popCSEmap();
 		emitBB(currBB);
 		joinBB = oldJoin;
-		currBB->setLeft(joinBB);
+		linkBB(currBB, joinBB);
 	}
 	else
 	{
 		joinBB = oldJoin;
-		origBB->setRight(joinBB);
+		linkBB(origBB, joinBB);
 	}
 	currBB = joinBB;
-	commitPhis();
+	commitPhis(joinBB);
 	mustParse(LexAnalysis::fi);
 }
 
@@ -630,6 +630,12 @@ void Parser::err()
 	exit(1);
 }
 
+void Parser::linkBB(SSA::BasicBlock* pred, SSA::BasicBlock* succ)
+{
+	pred->addSuccessor(succ);
+	succ->addPredecessor(pred);
+}
+
 void Parser::pushVarMap()
 {
 	pushVarMap(std::unordered_map<std::string, SSA::Operand*>());
@@ -729,7 +735,7 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 	}
 	else if (callOperand)
 	{
-		std::list<SSA::Operand*> args = callOperand->getArgs();
+		std::list<SSA::Operand*> args = callOperand->getCallArgs();
 		for (SSA::Operand*& arg : args)
 		{
 			if (arg == oldOperand)
@@ -737,57 +743,53 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 				arg == newOperand;
 			}
 		}
-		callOperand->setArgs(args);
+		callOperand->setCallArgs(args);
 	}
 }
 
-void Parser::insertPhis(SSA::BasicBlock* bb)
+void Parser::insertPhis(SSA::BasicBlock* from, SSA::BasicBlock* to)
 {
 	for (std::pair<std::string, SSA::Operand*> pair : varMapStack.front())
 	{
 		std::string varName = pair.first;
 		SSA::Operand* operand = pair.second;
 		bool foundPhi = false;
-		for (SSA::Instruction* ins : bb->getInstructions())
+		for (SSA::Instruction* ins : to->getInstructions())
 		{
-			if (ins->getOpcode() == SSA::phi && pair.first == ins->getVarName())
+			SSA::Operand* phi = ins->getOperand1();
+			if (ins->getOpcode() == SSA::phi && pair.first == phi->getVarName())
 			{
-				if (!ins->getOperand1())
-				{
-					ins->setOperand1(operand);
-				}
-				else if (!ins->getOperand2())
-				{
-					ins->setOperand2(operand);
-				}
+				phi->addPhiArg(from, operand);
 				foundPhi = true;
 				break;
 			}
 		}
 		if (!foundPhi)
 		{
-			bb->emitFront(new SSA::PhiInstruction(operand, varName));
+			SSA::PhiOperand* phi = new SSA::PhiOperand(varName, from, operand);
+			to->emitFront(new SSA::Instruction(SSA::phi, phi));
 		}
 	}
 }
 
-void Parser::commitPhis(bool loop)
+void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
 {
 	for (SSA::Instruction* ins : joinBB->getInstructions())
 	{
 		if (ins->getOpcode() == SSA::phi)
 		{
-			std::string varName = ins->getVarName();
-			SSA::Operand* oldOperand = getVarValue(varName, false);
+			SSA::Operand* phiOp = ins->getOperand1();
+			std::map<SSA::BasicBlock*, SSA::Operand*> phiArgs = phiOp->getPhiArgs();
+			std::string varName = phiOp->getVarName();
+			SSA::Operand* prevValue = getVarValue(varName, false);
 
-			// set phi operands to original value if not set
-			if (!ins->getOperand1())
+			// set phi operands to the previous value if not set
+			for (SSA::BasicBlock* pred : b->getPredecessors())
 			{
-				ins->setOperand1(oldOperand);
-			}
-			if (!ins->getOperand2())
-			{
-				ins->setOperand2(oldOperand);
+				if (phiArgs.find(pred) == phiArgs.cend())
+				{
+					phiOp->addPhiArg(pred, prevValue);
+				}
 			}
 
 			SSA::ValOperand* newOperand= new SSA::ValOperand(ins);
@@ -799,19 +801,18 @@ void Parser::commitPhis(bool loop)
 				{
 					for (std::pair<SSA::Operand*, std::list<SSA::Instruction*>> usePair : useChainLevel)
 					{
-						if (oldOperand == usePair.first)
+						if (prevValue == usePair.first)
 						{
 							for (SSA::Instruction* ins: usePair.second)
 							{
-								replaceOldOperandWithPhi(oldOperand, newOperand, ins, true);
-								replaceOldOperandWithPhi(oldOperand, newOperand, ins, false);
+								replaceOldOperandWithPhi(prevValue, newOperand, ins, true);
+								replaceOldOperandWithPhi(prevValue, newOperand, ins, false);
 							}
 						}
 					}
 				}
 				popUseChain();
 			}
-
 			assignVarValue(varName, newOperand);
 		}
 	}

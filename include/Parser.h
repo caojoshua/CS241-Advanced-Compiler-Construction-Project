@@ -87,6 +87,9 @@ private:
 	void mustParse(LexAnalysis::Token tk);
 	void err();
 
+	// basic block linking
+	void linkBB(SSA::BasicBlock* pred, SSA::BasicBlock* succ);
+
 	// var mapping
 	void pushVarMap();
 	void pushVarMap(std::unordered_map<std::string, SSA::Operand*>);
@@ -100,8 +103,8 @@ private:
 	void insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins);
 	void replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* newOperand,
 			SSA::Instruction* ins, bool left);
-	void insertPhis(SSA::BasicBlock* bb);
-	void commitPhis(bool loop = false);
+	void insertPhis(SSA::BasicBlock* from, SSA::BasicBlock* to);
+	void commitPhis(SSA::BasicBlock* b, bool loop = false);
 
 	// CSE
 	void pushCSEmap();

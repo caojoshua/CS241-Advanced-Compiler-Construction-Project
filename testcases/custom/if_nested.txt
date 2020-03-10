@@ -13,7 +13,7 @@ var a, b, c;
 		fi
 	else
 		if b > c then
-			let b <- b * 4
+			let c <- b * 4
 		fi
 	fi;
 	call OutputNum(a)

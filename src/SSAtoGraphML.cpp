@@ -49,7 +49,7 @@ void GraphML::writeFunc(std::ofstream& f, SSA::Func* func)
 	f << funcFooter;
 }
 
-void GraphML::SSAtoGraphML(SSA::Program ssa, char const* c)
+void GraphML::SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* c)
 {
 	std::string outDir = "graphml/";
 	std::string extension = ".graphml";

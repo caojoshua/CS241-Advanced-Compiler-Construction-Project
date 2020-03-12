@@ -49,7 +49,7 @@ private:
 	std::unordered_map<std::string, Array> arrayMap;
 
 	// global variables to keep track of where to emit
-	SSA::Program IR;
+	SSA::IntermediateRepresentation IR;
 	SSA::Func* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
@@ -117,5 +117,5 @@ private:
 	void emit(SSA::BasicBlock* bb, SSA::Instruction* ins);
 public:
 	Parser(char const* s);
-	SSA::Program& parse();
+	SSA::IntermediateRepresentation& parse();
 };

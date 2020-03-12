@@ -43,9 +43,19 @@ SSA::Operand::FunctionCall* SSA::Operand::getFunctionCall() const
 	return nullptr;
 }
 
+std::list<SSA::Operand*> SSA::Operand::getArgs() const
+{
+	return std::list<SSA::Operand*>();
+}
+
 std::string SSA::Operand::getVarName() const
 {
 	return "";
+}
+
+SSA::Operand* SSA::Operand::getPhiArg(BasicBlock* b) const
+{
+	return nullptr;
 }
 
 std::map<SSA::BasicBlock*, SSA::Operand*> SSA::Operand::getPhiArgs() const
@@ -95,7 +105,7 @@ std::string SSA::CallOperand::getFuncName() const
 	return f->funcName;
 }
 
-std::list<SSA::Operand*> SSA::CallOperand::getCallArgs() const
+std::list<SSA::Operand*> SSA::CallOperand::getArgs() const
 {
 	return f->args;
 }
@@ -128,6 +138,25 @@ SSA::Operand::Type SSA::PhiOperand::getType()
 std::string SSA::PhiOperand::getVarName() const
 {
 	return varName;
+}
+
+SSA::Operand* SSA::PhiOperand::getPhiArg(BasicBlock* b) const
+{
+	if (args.find(b) == args.cend())
+	{
+		return nullptr;
+	}
+	return args.at(b);
+}
+
+std::list<SSA::Operand*> SSA::PhiOperand::getArgs() const
+{
+	std::list<Operand*> l;
+	for (std::pair<BasicBlock*, Operand*> pair : args)
+	{
+		l.push_back(pair.second);
+	}
+	return l;
 }
 
 std::map<SSA::BasicBlock*, SSA::Operand*> SSA::PhiOperand::getPhiArgs() const
@@ -178,9 +207,14 @@ bool SSA::Instruction::equals(Instruction* other)
 	return op == other->op && x->equals(other->x) && y->equals(other->y);
 }
 
-int const SSA::Instruction::getId()
+int SSA::Instruction::getId() const
 {
 	return id;
+}
+
+void SSA::Instruction::setId(int id)
+{
+	this->id = id;
 }
 
 SSA::Opcode const SSA::Instruction::getOpcode()
@@ -269,6 +303,11 @@ std::list<SSA::BasicBlock*> SSA::BasicBlock::getSuccessors()
 	return succ;
 }
 
+bool SSA::BasicBlock::isLoopHeader() const
+{
+	return loopHeader;
+}
+
 SSA::Func::~Func()
 {
 	for (BasicBlock* bb : BBs)
@@ -292,7 +331,7 @@ std::list<SSA::BasicBlock*> SSA::Func::getBBs()
 	return BBs;
 }
 
-SSA::Program::~Program()
+SSA::IntermediateRepresentation::~IntermediateRepresentation()
 {
 	for (Func* f : funcs)
 	{
@@ -300,22 +339,22 @@ SSA::Program::~Program()
 	}
 }
 
-void SSA::Program::emitMain(Func* f)
+void SSA::IntermediateRepresentation::emitMain(Func* f)
 {
 	mainFunc = f;
 }
 
-void SSA::Program::emit(Func* f)
+void SSA::IntermediateRepresentation::emit(Func* f)
 {
 	funcs.push_back(f);
 }
 
-SSA::Func* const SSA::Program::getMain()
+SSA::Func* const SSA::IntermediateRepresentation::getMain()
 {
 	return mainFunc;
 }
 
-SSA::Func* const SSA::Program::getFunc(std::string name)
+SSA::Func* const SSA::IntermediateRepresentation::getFunc(std::string name)
 {
 	for (Func* f : funcs)
 	{
@@ -327,7 +366,7 @@ SSA::Func* const SSA::Program::getFunc(std::string name)
 	return nullptr;
 }
 
-std::list<SSA::Func*>& SSA::Program::getFuncs()
+std::list<SSA::Func*>& SSA::IntermediateRepresentation::getFuncs()
 {
 	return funcs;
 }

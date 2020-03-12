@@ -4,7 +4,8 @@
 #
 
 CC = g++
-CFLAGS = -g -I include/
+CFLAGS = -I include/
+EXTRA_CFLAGS = 
 
 ALL_TESTCASES = $(wildcard testcases/*.txt)
 PUBLIC_TESTCASES = $(wildcard testcases/public/*.txt)
@@ -16,7 +17,10 @@ DEPS = $(wildcard include/*.h)
 EXE = compiler
 
 all: $(DEPS) $(SRCS)
-	$(CC) $(SRCS) -o $(EXE) $(CFLAGS)
+	$(CC) $(SRCS) -o $(EXE) $(CFLAGS) $(EXTRA_CFLAGS)
+	
+all_debug_symbols: $(DEPS) $(SRCS)
+	$(MAKE) all EXTRA_CFLAGS=-g
 
 run_all: $(EXE)
 	./$(EXE) $(ALL_TESTCASES)

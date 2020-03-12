@@ -13,7 +13,7 @@ Parser::Parser(char const* s) :
 	pushCSEmap();
 }
 
-SSA::Program& Parser::parse() {
+SSA::IntermediateRepresentation& Parser::parse() {
 	SSA::Instruction::resetId();
 	Array::resetTotalOffset();
 	mustParse(LexAnalysis::main);
@@ -202,7 +202,7 @@ void Parser::whileLoop()
 	mustParse(LexAnalysis::while_tk);
 	SSA::BasicBlock* orig = currBB;
 	emitBB(orig);
-	currBB = new SSA::BasicBlock();
+	currBB = new SSA::BasicBlock(true);
 	linkBB(orig, currBB);
 	joinBB = currBB;
 	SSA::BasicBlock* oldJoin = joinBB;
@@ -696,6 +696,7 @@ void Parser::popUseChain()
 
 /*
  * assumes use chain stack is not empty
+ * TODO: I think we should only be updating the front of the use chain, create a testcase for this
  */
 void Parser::insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins)
 {
@@ -738,7 +739,7 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 	}
 	else if (callOperand)
 	{
-		std::list<SSA::Operand*> args = callOperand->getCallArgs();
+		std::list<SSA::Operand*> args = callOperand->getArgs();
 		for (SSA::Operand*& arg : args)
 		{
 			if (arg == oldOperand)

@@ -40,10 +40,13 @@ namespace SSA
 
 		virtual Instruction* getInstruction();
 		virtual FunctionCall* getFunctionCall() const;
+		virtual int getConst();
+		virtual std::list<Operand*> getArgs() const;
+
 		virtual std::string getVarName() const;
+		virtual Operand* getPhiArg(BasicBlock* b) const;
 		virtual std::map<BasicBlock*, Operand*> getPhiArgs() const;
 		virtual void addPhiArg(BasicBlock* b, Operand* o) {}
-		virtual int getConst();
 	};
 
 	class ValOperand : public Operand
@@ -68,7 +71,7 @@ namespace SSA
 		virtual Operand* clone();
 		Type getType();
 		std::string getFuncName() const;
-		std::list<Operand*> getCallArgs() const;
+		std::list<Operand*> getArgs() const;
 		void setCallArgs(std::list<Operand*> args);
 		std::string toStr();
 	};
@@ -84,6 +87,8 @@ namespace SSA
 		virtual Operand* clone();
 		Type getType();
 		std::string getVarName() const;
+		Operand* getPhiArg(BasicBlock* b) const;
+		std::list<Operand*> getArgs() const;
 		std::map<BasicBlock*, Operand*> getPhiArgs() const;
 		void addPhiArg(BasicBlock* b, Operand* o);
 		std::string toStr();
@@ -116,7 +121,8 @@ namespace SSA
 		Instruction(const Instruction &other) : Instruction(other.op, other.x, other.y) {}
 		virtual ~Instruction();
 		virtual bool equals(Instruction* other);
-		int const getId();
+		int getId() const;
+		void setId(int id);
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();
@@ -132,8 +138,10 @@ namespace SSA
 		std::list<Instruction*> code;
 		std::list<BasicBlock*> pred;
 		std::list<BasicBlock*> succ;
+		bool loopHeader;
 	public:
-		BasicBlock() {}
+		BasicBlock() : loopHeader(false) {}
+		BasicBlock(bool loopHeader) : loopHeader(loopHeader) {}
 		~BasicBlock();
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
@@ -144,6 +152,7 @@ namespace SSA
 		void addSuccessor(BasicBlock* succ);
 		std::list<BasicBlock*> getPredecessors();
 		std::list<BasicBlock*> getSuccessors();
+		bool isLoopHeader() const;
 	};
 
 	class Func
@@ -159,14 +168,14 @@ namespace SSA
 		std::list<BasicBlock*> getBBs();
 	};
 
-	class Program
+	class IntermediateRepresentation
 	{
 	private:
 		Func* mainFunc;
 		std::list<Func*> funcs;
 	public:
-		Program() : mainFunc(nullptr) {}
-		~Program();
+		IntermediateRepresentation() : mainFunc(nullptr) {}
+		~IntermediateRepresentation();
 		void emitMain(Func* f);
 		void emit(Func* f);
 		Func* const getMain();

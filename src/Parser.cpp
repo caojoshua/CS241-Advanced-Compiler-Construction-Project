@@ -225,6 +225,7 @@ void Parser::whileLoop()
 
 	emitBB(currBB);
 	commitPhis(joinBB, true);
+	popUseChain();
 	currBB = new SSA::BasicBlock();
 	linkBB(joinBB, currBB);
 }
@@ -683,12 +684,14 @@ SSA::Operand* Parser::getVarValue(std::string id, bool fromExpression)
 void Parser::pushUseChain()
 {
 	useChain.push_front(std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>());
-//	useChain.push(std::unordered_map<std::string, std::list<SSA::Operand**>>());
 }
 
 void Parser::popUseChain()
 {
-	useChain.pop_front();
+	if (!useChain.empty())
+	{
+		useChain.pop_front();
+	}
 }
 
 /*
@@ -774,7 +777,7 @@ void Parser::insertPhis(SSA::BasicBlock* from, SSA::BasicBlock* to)
 
 void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
 {
-	for (SSA::Instruction* ins : joinBB->getInstructions())
+	for (SSA::Instruction* ins : b->getInstructions())
 	{
 		if (ins->getOpcode() == SSA::phi)
 		{
@@ -803,15 +806,14 @@ void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
 					{
 						if (prevValue == usePair.first)
 						{
-							for (SSA::Instruction* ins: usePair.second)
+							for (SSA::Instruction* i: usePair.second)
 							{
-								replaceOldOperandWithPhi(prevValue, newOperand, ins, true);
-								replaceOldOperandWithPhi(prevValue, newOperand, ins, false);
+								replaceOldOperandWithPhi(prevValue, newOperand, i, true);
+								replaceOldOperandWithPhi(prevValue, newOperand, i, false);
 							}
 						}
 					}
 				}
-				popUseChain();
 			}
 			assignVarValue(varName, newOperand);
 		}

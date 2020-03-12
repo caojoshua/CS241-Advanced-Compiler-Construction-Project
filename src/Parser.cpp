@@ -725,29 +725,35 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 	{
 		currOperand = ins->getOperand2();
 	}
-	SSA::CallOperand* callOperand = dynamic_cast<SSA::CallOperand*>(currOperand);
-	if (currOperand == oldOperand)
+	if (currOperand)
 	{
-		if (left)
+		switch (currOperand->getType())
 		{
-			ins->setOperand1(newOperand);
-		}
-		else
-		{
-			ins->setOperand2(newOperand);
-		}
-	}
-	else if (callOperand)
-	{
-		std::list<SSA::Operand*> args = callOperand->getArgs();
-		for (SSA::Operand*& arg : args)
-		{
-			if (arg == oldOperand)
+		case SSA::Operand::val:
+			if (currOperand == oldOperand)
 			{
-				arg == newOperand;
+				if (left)
+				{
+					ins->setOperand1(newOperand);
+				}
+				else
+				{
+					ins->setOperand2(newOperand);
+				}
 			}
+			break;
+		case SSA::Operand::call:
+		case SSA::Operand::phi:
+			std::list<SSA::Operand*> args = currOperand->getArgs();
+			for (SSA::Operand*& arg : args)
+			{
+				if (arg == oldOperand)
+				{
+					currOperand->replaceArg(arg, newOperand);
+				}
+			}
+			break;
 		}
-		callOperand->setCallArgs(args);
 	}
 }
 
@@ -816,6 +822,14 @@ void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
 					}
 				}
 			}
+
+			// add args to use chain AFTER propagting so that the phi instruction
+			// does not propagate itself into its own operands
+			for (std::pair<SSA::BasicBlock*, SSA::Operand*> arg : phiOp->getPhiArgs())
+			{
+				insertIntoUseChain(arg.second, ins);
+			}
+
 			assignVarValue(varName, newOperand);
 		}
 	}

@@ -42,6 +42,7 @@ namespace SSA
 		virtual FunctionCall* getFunctionCall() const;
 		virtual int getConst();
 		virtual std::list<Operand*> getArgs() const;
+		virtual void replaceArg(SSA::Operand* oldOp, SSA::Operand* newOp) {}
 
 		virtual std::string getVarName() const;
 		virtual Operand* getPhiArg(BasicBlock* b) const;
@@ -72,7 +73,7 @@ namespace SSA
 		Type getType();
 		std::string getFuncName() const;
 		std::list<Operand*> getArgs() const;
-		void setCallArgs(std::list<Operand*> args);
+		void replaceArg(SSA::Operand* oldOp, SSA::Operand* newOp);
 		std::string toStr();
 	};
 
@@ -89,6 +90,7 @@ namespace SSA
 		std::string getVarName() const;
 		Operand* getPhiArg(BasicBlock* b) const;
 		std::list<Operand*> getArgs() const;
+		void replaceArg(SSA::Operand* oldOp, SSA::Operand* newOp);
 		std::map<BasicBlock*, Operand*> getPhiArgs() const;
 		void addPhiArg(BasicBlock* b, Operand* o);
 		std::string toStr();

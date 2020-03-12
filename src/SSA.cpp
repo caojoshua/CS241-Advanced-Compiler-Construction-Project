@@ -110,9 +110,15 @@ std::list<SSA::Operand*> SSA::CallOperand::getArgs() const
 	return f->args;
 }
 
-void SSA::CallOperand::setCallArgs(std::list<SSA::Operand*> args)
+void SSA::CallOperand::replaceArg(Operand* oldOp, Operand* newOp)
 {
-	f->args = args;
+	for (SSA::Operand*& o : f->args)
+	{
+		if (o == oldOp)
+		{
+			o = newOp;
+		}
+	}
 }
 
 SSA::PhiOperand::PhiOperand(std::string varName, BasicBlock* b, Operand* o) : varName(varName)
@@ -157,6 +163,17 @@ std::list<SSA::Operand*> SSA::PhiOperand::getArgs() const
 		l.push_back(pair.second);
 	}
 	return l;
+}
+
+void SSA::PhiOperand::replaceArg(Operand* oldOp, Operand* newOp)
+{
+	for (std::pair<BasicBlock*, Operand*> pair : args)
+	{
+		if (pair.second == oldOp)
+		{
+			args[pair.first] = newOp;
+		}
+	}
 }
 
 std::map<SSA::BasicBlock*, SSA::Operand*> SSA::PhiOperand::getPhiArgs() const

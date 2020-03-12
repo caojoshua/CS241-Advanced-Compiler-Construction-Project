@@ -39,6 +39,9 @@ IntervalList buildIntervals(SSA::Func* f)
 	std::map<SSA::BasicBlock*, std::list<SSA::Instruction*>> liveIn;
 	std::list<SSA::BasicBlock*> BBs = f->getBBs();
 
+	// keep track of last lineIds to keep track of end of loop bodies
+	std::map<SSA::BasicBlock*, int> endLineIds;
+
 	// compute lineId, which is the number of instructions in the function
 	uint lineId = 0;
 	for (SSA::BasicBlock* b : BBs)
@@ -81,6 +84,7 @@ IntervalList buildIntervals(SSA::Func* f)
 		std::list<SSA::Instruction*> instructions = b->getInstructions();
 		uint bFrom = lineId - instructions.size() + 1;
 		uint bTo = lineId;
+		endLineIds[b] = lineId;
 
 		// add live range over basic block for each value in live
 		for (SSA::Instruction* i : live)
@@ -115,16 +119,20 @@ IntervalList buildIntervals(SSA::Func* f)
 		if (b->isLoopHeader())
 		{
 			// predecessor that has already been visited is last node of loop body
+			int loopBodyEndId = -1;
 			for (SSA::BasicBlock* pred : b->getPredecessors())
 			{
-				int toId = pred->getInstructions().back()->getId();
-				if (liveIn.find(pred) != liveIn.cend())
+				if (endLineIds.find(pred) != endLineIds.cend())
 				{
-					for (SSA::Instruction* ins : live)
+					if (endLineIds[pred] > loopBodyEndId)
 					{
-						intervals.addRange(ins, bFrom, toId);
+						loopBodyEndId = endLineIds[pred];
 					}
 				}
+			}
+			for (SSA::Instruction* liveIns : live)
+			{
+				intervals.addRange(liveIns, bFrom, loopBodyEndId);
 			}
 		}
 		liveIn[b] = live;

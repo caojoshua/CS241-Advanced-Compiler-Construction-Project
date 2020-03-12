@@ -1,0 +1,12 @@
+main
+var a, b;
+{
+	// tests if a and b live through loop body
+	let a <- call InputNum();
+	let b <- call InputNum();
+	while b < a do
+		call OutputNum(1)
+	od;
+	let a <- call InputNum();
+	call OutputNum(a)
+}.

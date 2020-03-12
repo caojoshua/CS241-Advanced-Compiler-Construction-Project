@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 		Parser parser(argv[i]);
 		SSA::IntermediateRepresentation ssa = parser.parse();
 		GraphML::SSAtoGraphML(ssa, argv[i]);
-//		allocateRegisters(ssa);
+		allocateRegisters(ssa);
 	}	
 
 	return 0;

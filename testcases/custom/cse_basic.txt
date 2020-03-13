@@ -4,5 +4,5 @@ var a, b, c;
 	let a <- call InputNum();
 	let b <- call InputNum();
 	let c <- (a + b) * (a + b);
-	call OutputNum(1)
+	call OutputNum(c)
 }.

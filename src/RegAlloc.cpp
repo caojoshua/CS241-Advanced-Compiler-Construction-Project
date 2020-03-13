@@ -33,7 +33,7 @@ void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
  * Question: don't we need to include phis in liveset in loop headers
  * to propage its liveness throughout loop?
  */
-IntervalList buildIntervals(SSA::Func* f)
+InterferenceGraph buildIntervals(SSA::Func* f)
 {
 	IntervalList intervals;
 	std::map<SSA::BasicBlock*, std::list<SSA::Instruction*>> liveIn;
@@ -105,8 +105,9 @@ IntervalList buildIntervals(SSA::Func* f)
 				// input operand
 				SSA::Operand* op1 = ins->getOperand1();
 				SSA::Operand* op2 = ins->getOperand2();
-				intervals.addRange(op1, bFrom, lineId);
-				intervals.addRange(op2, bFrom, lineId);
+				// sub 1 because input ops shoud NOT intersect without output op
+				intervals.addRange(op1, bFrom, lineId - 1);
+				intervals.addRange(op2, bFrom, lineId - 1);
 				addOperandToLive(live, op1);
 				addOperandToLive(live, op2);
 			}
@@ -139,24 +140,26 @@ IntervalList buildIntervals(SSA::Func* f)
 	}
 
 	// output debug
-	for (SSA::BasicBlock* b : BBs)
-	{
-		for (SSA::Instruction* i : b->getInstructions())
-		{
-			std::cout << i->toStr() << ": ";
-			for (std::pair<int, int> pair : intervals.getRanges(i))
-			{
-				std::cout << " (" << pair.first << ", " << pair.second << ")";
-			}
-			std::cout << std::endl;
-		}
-	}
-	return intervals;
+//	for (SSA::BasicBlock* b : BBs)
+//	{
+//		for (SSA::Instruction* i : b->getInstructions())
+//		{
+//			std::cout << i->toStr() << ": ";
+//			for (std::pair<int, int> pair : intervals.getRanges(i))
+//			{
+//				std::cout << " (" << pair.first << ", " << pair.second << ")";
+//			}
+//			std::cout << std::endl;
+//		}
+//	}
+	return intervals.buildInterferenceGraph();
 }
 
 void allocateRegisters(SSA::Func* f)
 {
-	IntervalList intervals = buildIntervals(f);
+	InterferenceGraph intervals = buildIntervals(f);
+	GraphML::InterferenceGraphToGraphML(intervals,
+			"interference_graph/", ("_" + f->getName()).c_str());
 	// build interference graph
 	// graph coloring
 }

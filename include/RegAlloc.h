@@ -8,10 +8,11 @@
 
 #include <RegAllocStructs.h>
 #include "SSA.h"
+#include "GraphMLWriter.h"
 #include <iostream>
 
 void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o);
-IntervalList buildIntervals(SSA::Func* f);
+InterferenceGraph buildIntervals(SSA::Func* f);
 
 void allocateRegister(SSA::Func* f);
 void allocateRegisters(SSA::IntermediateRepresentation ir);

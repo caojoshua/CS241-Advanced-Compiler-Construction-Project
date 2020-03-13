@@ -5,6 +5,45 @@
 
 # include "RegAllocStructs.h"
 
+InterferenceGraph::Node::Node() : id(-1)
+{
+}
+
+InterferenceGraph::Node::Node(int id) : id(id)
+{
+}
+
+InterferenceGraph::InterferenceGraph(std::vector<SSA::Instruction*> instructions)
+{
+	int numNodes = instructions.size();
+	adjacencyMatrix.reserve(numNodes);
+	for (int i = 0; i < numNodes; ++i)
+	{
+		nodes[instructions[i]] = Node(i);
+		adjacencyMatrix.push_back(std::vector<bool>());
+		adjacencyMatrix[i].reserve(numNodes);
+		for (int j = 0; j < numNodes; ++j)
+		{
+			adjacencyMatrix[i].push_back(false);
+		}
+	}
+}
+
+void InterferenceGraph::addEdge(SSA::Instruction *x, SSA::Instruction *y)
+{
+	Node& xNode = nodes[x];
+	Node& yNode = nodes[y];
+	adjacencyMatrix[xNode.id][yNode.id] = true;
+	adjacencyMatrix[yNode.id][xNode.id] = true;
+	xNode.edges.push_back(y);
+	yNode.edges.push_back(x);
+}
+
+std::unordered_map<SSA::Instruction*, InterferenceGraph::Node> InterferenceGraph::getNodes() const
+{
+	return nodes;
+}
+
 IntervalList::Interval::Interval()
 {
 }
@@ -67,6 +106,29 @@ bool IntervalList::Interval::intersects(Interval other) const
 	return false;
 }
 
+InterferenceGraph IntervalList::buildInterferenceGraph() const
+{
+	std::vector<SSA::Instruction*> instructions;
+	for (std::pair<SSA::Instruction*, Interval> interval : intervals)
+	{
+		instructions.push_back(interval.first);
+	}
+	InterferenceGraph graph(instructions);
+
+	for (std::pair<SSA::Instruction*, Interval> i: intervals)
+	{
+		for (std::pair<SSA::Instruction*, Interval> j : intervals)
+		{
+			if (i.second.intersects(j.second))
+			{
+				graph.addEdge(i.first, j.first);
+			}
+		}
+	}
+
+	return graph;
+}
+
 void IntervalList::addRange(SSA::Instruction *i, int from, int to)
 {
 	if (i)
@@ -109,5 +171,9 @@ void IntervalList::setFrom(SSA::Instruction *i, int from)
 	if (intervals.find(i) != intervals.cend())
 	{
 		intervals[i].setFrom(from);
+	}
+	else
+	{
+		intervals[i] = Interval(from, from);
 	}
 }

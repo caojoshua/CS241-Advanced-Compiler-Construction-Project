@@ -138,20 +138,6 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 		}
 		liveIn[b] = live;
 	}
-
-	// output debug
-//	for (SSA::BasicBlock* b : BBs)
-//	{
-//		for (SSA::Instruction* i : b->getInstructions())
-//		{
-//			std::cout << i->toStr() << ": ";
-//			for (std::pair<int, int> pair : intervals.getRanges(i))
-//			{
-//				std::cout << " (" << pair.first << ", " << pair.second << ")";
-//			}
-//			std::cout << std::endl;
-//		}
-//	}
 	return intervals.buildInterferenceGraph();
 }
 
@@ -160,7 +146,6 @@ void allocateRegisters(SSA::Func* f)
 	InterferenceGraph intervals = buildIntervals(f);
 	GraphML::InterferenceGraphToGraphML(intervals,
 			"interference_graph/", ("_" + f->getName()).c_str());
-	// build interference graph
 	// graph coloring
 }
 

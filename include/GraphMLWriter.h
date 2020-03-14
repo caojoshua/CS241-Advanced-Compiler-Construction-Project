@@ -80,7 +80,7 @@ namespace GraphML
 	 * @param s write output to graphml/{s}
 	 * output SSA IR in GraphML format, viewable in yEd GUI: https://www.yworks.com/products/yed
 	 */
-	void SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* c);
+	void SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* subdir);
 
 	void InterferenceGraphToGraphML(InterferenceGraph graph, char const* subdir, char const* footer = "");
 

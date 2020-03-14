@@ -71,19 +71,9 @@ void GraphML::writeSSAFunc(std::ofstream& f, SSA::Func* func)
 	f << GRAPH_FOOTER;
 }
 
-void GraphML::SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* c)
+void GraphML::SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* subdir)
 {
-	std::string str = std::string(c);
-	std::size_t testcaseDirIndex = str.find(TESTCASE_DIR) + TESTCASE_DIR.length();
-	str = str.substr(testcaseDirIndex);
-
-	std::size_t fileIndex = str.find_last_of("/\\");
-	system(("mkdir -p " + OUT_DIR + str.substr(0, fileIndex)).c_str());
-
-	std::size_t extensionIndex = str.find(".txt");
-	std::string fname = OUT_DIR + str.substr(0, extensionIndex) + EXTENSION;
-
-	std::ofstream f(fname);
+	std::ofstream f = getFile(subdir);
 	if (f)
 	{
 		f << HEADER;
@@ -97,7 +87,7 @@ void GraphML::SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* c)
 	}
 	else
 	{
-		std::cout << "unable to open file " << fname << std::endl;
+		std::cout << ERR << std::endl;
 	}
 }
 

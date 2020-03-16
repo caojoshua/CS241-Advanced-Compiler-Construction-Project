@@ -16,5 +16,6 @@ InterferenceGraph buildIntervals(SSA::Func* f);
 
 void allocateRegister(SSA::Func* f);
 void allocateRegisters(SSA::IntermediateRepresentation& ir);
+void insertMoveBeforePhi(SSA::Func* f);
 
 #endif

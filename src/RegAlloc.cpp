@@ -97,15 +97,17 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 				ins_it != instructions.rend(); ++ins_it)
 		{
 			SSA::Instruction* ins = *ins_it;
+
+			// output operand
+			// compute setFrom for phi in testing, in case it is not used later
+			// ideally this would be dead-code eliminated
+			intervals.setFrom(ins, lineId);
+
 			if (ins->getOpcode() != SSA::phi)
 			{
-				// output operand
-				intervals.setFrom(ins, lineId);
-
 				// input operand
 				SSA::Operand* op1 = ins->getOperand1();
 				SSA::Operand* op2 = ins->getOperand2();
-				// sub 1 because input ops shoud NOT intersect without output op
 				intervals.addRange(op1, bFrom, lineId - 1);
 				intervals.addRange(op2, bFrom, lineId - 1);
 				addOperandToLive(live, op1);
@@ -141,13 +143,42 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 	return intervals.buildInterferenceGraph();
 }
 
+void insertMoveBeforePhi(SSA::Func* f)
+{
+	for (SSA::BasicBlock* b : f->getBBs())
+	{
+		for (SSA::Instruction* i : b->getInstructions())
+		{
+			if (i->getOpcode() == SSA::phi)
+			{
+				SSA::Operand* phi = i->getOperand1();
+				if (phi)
+				{
+					for (auto pair : phi->getPhiArgs())
+					{
+						switch (pair.second->getType())
+						{
+						case SSA::Operand::val:
+						case SSA::Operand::constant:
+							SSA::Instruction* mov = new SSA::Instruction(SSA::move, pair.second);
+							mov->setReg(i->getReg());
+							pair.first->emit(mov);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void allocateRegisters(SSA::Func* f)
 {
 	InterferenceGraph intervals = buildIntervals(f);
 	GraphML::InterferenceGraphToGraphML(intervals,
 			"interference_graph/", ("_" + f->getName()).c_str());
 	intervals.colorGraph(NUM_REG);
-	// graph coloring
+	insertMoveBeforePhi(f);
 }
 
 void allocateRegisters(SSA::IntermediateRepresentation& ir)

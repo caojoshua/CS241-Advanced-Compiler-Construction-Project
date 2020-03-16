@@ -97,6 +97,7 @@ void InterferenceGraph::addEdge(SSA::Instruction *x, SSA::Instruction *y)
 		adjacencyMatrix[xNode->id][yNode->id] = true;
 		adjacencyMatrix[yNode->id][xNode->id] = true;
 		xNode->edges.push_back(y);
+		if (!(x == y))
 		yNode->edges.push_back(x);
 	}
 }
@@ -248,13 +249,13 @@ InterferenceGraph IntervalList::buildInterferenceGraph() const
 	}
 	InterferenceGraph graph(instructions);
 
-	for (std::pair<SSA::Instruction*, Interval> i : intervals)
+	for (auto i = intervals.cbegin(); i != intervals.cend(); ++i)
 	{
-		for (std::pair<SSA::Instruction*, Interval> j : intervals)
+		for (auto j = i; j != intervals.cend(); ++j)
 		{
-			if (i.second.intersects(j.second))
+			if ((*i).second.intersects((*j).second))
 			{
-				graph.addEdge(i.first, j.first);
+				graph.addEdge((*i).first, (*j).first);
 			}
 		}
 	}

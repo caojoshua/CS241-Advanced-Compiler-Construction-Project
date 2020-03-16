@@ -111,20 +111,24 @@ namespace SSA
 	class Instruction
 	{
 	private:
-		static int idCount;
-		int id;
+		static uint idCount;
+		uint id;
+		int reg;
 		Opcode op;
 		Operand* x;
 		Operand* y;
 	public:
-		Instruction(Opcode op) : op(op), x(nullptr), y(nullptr), id(idCount++) {};
-		Instruction(Opcode op, Operand* x) : op(op), x(x), y(nullptr), id(idCount++) {};
-		Instruction(Opcode op, Operand* x, Operand* y) : op(op), x(x), y(y), id(idCount++) {};
+		Instruction(Opcode op) : Instruction(op, nullptr, nullptr) {};
+		Instruction(Opcode op, Operand* x) : Instruction(op, x, nullptr) {};
+		Instruction(Opcode op, Operand* x, Operand* y)
+					: op(op), x(x), y(y), id(idCount++), reg(-1) {};
 		Instruction(const Instruction &other) : Instruction(other.op, other.x, other.y) {}
 		virtual ~Instruction();
 		virtual bool equals(Instruction* other);
-		int getId() const;
-		void setId(int id);
+		uint getId() const;
+		int getReg() const;
+		void setId(uint id);
+		void setReg(int reg);
 		Opcode const getOpcode();
 		Operand* const getOperand1();
 		Operand* const getOperand2();

@@ -15,6 +15,6 @@ void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o);
 InterferenceGraph buildIntervals(SSA::Func* f);
 
 void allocateRegister(SSA::Func* f);
-void allocateRegisters(SSA::IntermediateRepresentation ir);
+void allocateRegisters(SSA::IntermediateRepresentation& ir);
 
 #endif

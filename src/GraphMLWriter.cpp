@@ -102,28 +102,28 @@ void GraphML::InterferenceGraphToGraphML(InterferenceGraph graph, char const* su
 		graphHeader.replace(graphHeader.find("{graph_type}"), 12, "undirected");
 		f << graphHeader;
 
-		std::unordered_map<SSA::Instruction*, InterferenceGraph::Node> nodes = graph.getNodes();
+		std::list<InterferenceGraph::Node> nodes = graph.getNodes();
 		std::unordered_map<SSA::Instruction*, int> nodeIds;
 		int nodeId = 0;
 
-		for (std::pair<SSA::Instruction*, InterferenceGraph::Node> pair : nodes)
+		for (InterferenceGraph::Node node : nodes)
 		{
-			std::string node = std::string(NODE_HEADER);
-			node.replace(node.find("{node_id}"), 9, std::to_string(nodeId));
-			f << node << pair.first->toStr() << NODE_FOOTER;
+			std::string nodeStr = std::string(NODE_HEADER);
+			nodeStr.replace(nodeStr.find("{node_id}"), 9, std::to_string(nodeId));
+			f << nodeStr << node.instruction->toStr() << NODE_FOOTER;
 
-			nodeIds[pair.first] = nodeId;
+			nodeIds[node.instruction] = nodeId;
 			++nodeId;
 		}
 
 		int edgeId = 0;
-		for (std::pair<SSA::Instruction*, InterferenceGraph::Node> pair : nodes)
+		for (InterferenceGraph::Node node : nodes)
 		{
-			for (SSA::Instruction* i : pair.second.edges)
+			for (SSA::Instruction* i : node.edges)
 			{
 				std::string edge = std::string(EDGE);
 				edge.replace(edge.find("{id}"), 4, std::to_string(edgeId));
-				edge.replace(edge.find("{from}"), 6, std::to_string(nodeIds[pair.first]));
+				edge.replace(edge.find("{from}"), 6, std::to_string(nodeIds[node.instruction]));
 				edge.replace(edge.find("{to}"), 4, std::to_string(nodeIds[i]));
 				f << edge;
 				++edgeId;

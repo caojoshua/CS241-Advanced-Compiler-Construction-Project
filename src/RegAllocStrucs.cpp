@@ -5,21 +5,80 @@
 
 # include "RegAllocStructs.h"
 
-InterferenceGraph::Node::Node() : id(-1)
+InterferenceGraph::Node::Node(SSA::Instruction *i) :
+		Node(-1, i)
 {
 }
 
-InterferenceGraph::Node::Node(int id) : id(id)
+InterferenceGraph::Node::Node(const Node &other) :
+		id(other.id), edges(other.edges), instruction(other.instruction)
 {
 }
 
-InterferenceGraph::InterferenceGraph(std::vector<SSA::Instruction*> instructions)
+InterferenceGraph::Node::Node(int id, SSA::Instruction *i) :
+		id(id), instruction(i)
+{
+}
+
+InterferenceGraph::Node* InterferenceGraph::getNode(SSA::Instruction *i)
+{
+	for (Node &n : nodes)
+	{
+		if (n.instruction == i)
+		{
+			return &n;
+		}
+	}
+	return nullptr;
+}
+
+InterferenceGraph::Node* InterferenceGraph::popNode(int k)
+{
+	for (std::list<Node>::iterator iter = nodes.begin(); iter != nodes.end();
+			++iter)
+	{
+		Node *n = new Node(*iter);
+		int sum = 0;
+		for (int i = 0; i < adjacencyMatrix.size(); ++i)
+		{
+			if (adjacencyMatrix[n->id][i])
+			{
+				sum += 1;
+			}
+		}
+		if (sum < k)
+		{
+			for (int i = 0; i < adjacencyMatrix.size(); ++i)
+			{
+				adjacencyMatrix[n->id][i] = false;
+				adjacencyMatrix[i][n->id] = false;
+			}
+			nodes.erase(iter);
+			return n;
+		}
+	}
+	return nullptr;
+}
+
+std::list<InterferenceGraph::Node>::iterator InterferenceGraph::spillNode()
+{
+	// TODO: heurisitc
+	for (std::list<Node>::iterator iter = nodes.begin(); iter != nodes.end();
+			++iter)
+	{
+		return iter;
+	}
+	return nodes.end();
+}
+
+InterferenceGraph::InterferenceGraph(
+		std::vector<SSA::Instruction*> instructions)
 {
 	int numNodes = instructions.size();
 	adjacencyMatrix.reserve(numNodes);
 	for (int i = 0; i < numNodes; ++i)
 	{
-		nodes[instructions[i]] = Node(i);
+		nodes.push_back(Node(i, instructions[i]));
 		adjacencyMatrix.push_back(std::vector<bool>());
 		adjacencyMatrix[i].reserve(numNodes);
 		for (int j = 0; j < numNodes; ++j)
@@ -31,17 +90,91 @@ InterferenceGraph::InterferenceGraph(std::vector<SSA::Instruction*> instructions
 
 void InterferenceGraph::addEdge(SSA::Instruction *x, SSA::Instruction *y)
 {
-	Node& xNode = nodes[x];
-	Node& yNode = nodes[y];
-	adjacencyMatrix[xNode.id][yNode.id] = true;
-	adjacencyMatrix[yNode.id][xNode.id] = true;
-	xNode.edges.push_back(y);
-	yNode.edges.push_back(x);
+	Node *xNode = getNode(x);
+	Node *yNode = getNode(y);
+	if (xNode and yNode)
+	{
+		adjacencyMatrix[xNode->id][yNode->id] = true;
+		adjacencyMatrix[yNode->id][xNode->id] = true;
+		xNode->edges.push_back(y);
+		yNode->edges.push_back(x);
+	}
 }
 
-std::unordered_map<SSA::Instruction*, InterferenceGraph::Node> InterferenceGraph::getNodes() const
+std::list<InterferenceGraph::Node> InterferenceGraph::getNodes() const
 {
 	return nodes;
+}
+
+/*
+ * G. J. Chaitin
+ * Register Allocation & Spilling via Graph Coloring
+ *
+ * additional notes:
+ * 1. when popping nodes, update the edges in the adjacency matrix
+ * 		- look through adjacency matrix to find it it has < k neighbors
+ * 		- this is much more efficient than going through each node and updating its edge
+ * 		if one exists with the current node
+ * 		- no need to restore matrix since subsequent coloring only relies on nodes'
+ * 		adjacency vectors
+ */
+void InterferenceGraph::colorGraph(int k)
+{
+	std::stack<Node> stack;
+	std::list<Node> spillSet;
+
+	while (!nodes.empty())
+	{
+		// pop a node with < k neighbors
+		Node *n = popNode(k);
+		while (n)
+		{
+			stack.push(*n);
+			// TODO: adding to container should create a copy, but idk if this is correct
+			// if it copies by reference, should remove following line
+			delete n;
+			n = popNode(k);
+		}
+
+		// if node is not empty, choose a node to spill
+		if (!nodes.empty())
+		{
+			std::list<Node>::iterator i = spillNode();
+			spillSet.push_back(*i);
+			nodes.erase(i);
+		}
+	}
+
+	if (!spillSet.empty())
+	{
+		// TODO: insert spill code {store after def; load before use}
+		// need to insert this into SSA if not doing code gen
+	}
+
+	// assign lowest possible color for each node in stack
+	while (!stack.empty())
+	{
+		Node n = stack.top();
+		stack.pop();
+		int color;
+		for (color = 0; color < k; ++color)
+		{
+			bool foundColor = true;
+			for (SSA::Instruction *i : n.edges)
+			{
+				if (i->getReg() == color)
+				{
+					foundColor = false;
+					break;
+				}
+			}
+			if (foundColor)
+			{
+				n.instruction->setReg(color);
+				break;
+			}
+		}
+	}
 }
 
 IntervalList::Interval::Interval()
@@ -66,7 +199,7 @@ void IntervalList::Interval::addRange(int from, int to)
 	}
 
 	// coalesce ranges that are adjacent or overlap
-	for (std::pair<int, int>& range : ranges)
+	for (std::pair<int, int> &range : ranges)
 	{
 		if (from - 1 <= range.second && to + 1 >= range.first)
 		{
@@ -81,7 +214,7 @@ void IntervalList::Interval::addRange(int from, int to)
 
 void IntervalList::Interval::setFrom(int from)
 {
-	for (std::pair<int, int>& range : ranges)
+	for (std::pair<int, int> &range : ranges)
 	{
 		if (from > range.first)
 		{
@@ -94,7 +227,7 @@ bool IntervalList::Interval::intersects(Interval other) const
 {
 	for (std::pair<int, int> thisRange : ranges)
 	{
-		for (std::pair<int, int> otherRange: other.ranges)
+		for (std::pair<int, int> otherRange : other.ranges)
 		{
 			if (thisRange.first <= otherRange.second
 					&& thisRange.second >= otherRange.first)
@@ -115,7 +248,7 @@ InterferenceGraph IntervalList::buildInterferenceGraph() const
 	}
 	InterferenceGraph graph(instructions);
 
-	for (std::pair<SSA::Instruction*, Interval> i: intervals)
+	for (std::pair<SSA::Instruction*, Interval> i : intervals)
 	{
 		for (std::pair<SSA::Instruction*, Interval> j : intervals)
 		{
@@ -141,14 +274,14 @@ void IntervalList::addRange(SSA::Operand *o, int from, int to)
 {
 	if (o)
 	{
-		switch(o->getType())
+		switch (o->getType())
 		{
 		case SSA::Operand::val:
 			addRange(o->getInstruction(), from, to);
 			break;
 		case SSA::Operand::phi:
 		case SSA::Operand::call:
-			for (SSA::Operand* arg : o->getArgs())
+			for (SSA::Operand *arg : o->getArgs())
 			{
 				addRange(arg, from, to);
 			}
@@ -157,7 +290,8 @@ void IntervalList::addRange(SSA::Operand *o, int from, int to)
 	}
 }
 
-std::list<std::pair<int, int>> IntervalList::getRanges(SSA::Instruction* i) const
+std::list<std::pair<int, int>> IntervalList::getRanges(
+		SSA::Instruction *i) const
 {
 	if (intervals.find(i) != intervals.cend())
 	{
@@ -171,8 +305,7 @@ void IntervalList::setFrom(SSA::Instruction *i, int from)
 	if (intervals.find(i) != intervals.cend())
 	{
 		intervals[i].setFrom(from);
-	}
-	else
+	} else
 	{
 		intervals[i] = Interval(from, from);
 	}

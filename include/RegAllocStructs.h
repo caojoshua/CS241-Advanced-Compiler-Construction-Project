@@ -10,6 +10,10 @@
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
+#include <stack>
+#include <list>
+
+const int NUM_REG = 6;
 
 class InterferenceGraph
 {
@@ -17,9 +21,11 @@ public:
 	struct Node
 	{
 	public:
-		Node();
-		Node(int id);
+		Node(SSA::Instruction* i);
+		Node(const Node& other);
+		Node(int id, SSA::Instruction* i);
 		int id;
+		SSA::Instruction* instruction;
 		std::list<SSA::Instruction*> edges;
 	};
 private:
@@ -27,11 +33,15 @@ private:
 	// G. J. Chaitin
 	// Register Allocation & Spilling via Graph Coloring
 	std::vector<std::vector<bool>> adjacencyMatrix;
-	std::unordered_map<SSA::Instruction*, Node> nodes;
+	std::list<Node> nodes;
+	Node* getNode(SSA::Instruction* i);
+	Node* popNode(int k);
+	std::list<Node>::iterator spillNode();
 public:
 	InterferenceGraph(std::vector<SSA::Instruction*> instructions);
 	void addEdge(SSA::Instruction* x, SSA::Instruction* y);
-	std::unordered_map<SSA::Instruction*, Node> getNodes() const;
+	std::list<Node> getNodes() const;
+	void colorGraph(int k);
 };
 
 class IntervalList

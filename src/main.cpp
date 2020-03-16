@@ -21,6 +21,7 @@ int main(int argc, char* argv[])
 		SSA::IntermediateRepresentation ssa = parser.parse();
 		GraphML::SSAtoGraphML(ssa, "SSA_first_pass/");
 		allocateRegisters(ssa);
+		GraphML::SSAtoGraphML(ssa, "SSA_reg_alloc/");
 	}	
 
 	return 0;

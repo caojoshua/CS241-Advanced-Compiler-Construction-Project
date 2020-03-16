@@ -211,7 +211,7 @@ int SSA::ConstOperand::getConst()
 	return constVal;
 }
 
-int SSA::Instruction::idCount = 0;
+uint SSA::Instruction::idCount = 0;
 
 SSA::Instruction::~Instruction()
 {
@@ -224,14 +224,24 @@ bool SSA::Instruction::equals(Instruction* other)
 	return op == other->op && x->equals(other->x) && y->equals(other->y);
 }
 
-int SSA::Instruction::getId() const
+uint SSA::Instruction::getId() const
 {
 	return id;
 }
 
-void SSA::Instruction::setId(int id)
+int SSA::Instruction::getReg() const
+{
+	return reg;
+}
+
+void SSA::Instruction::setId(uint id)
 {
 	this->id = id;
+}
+
+void SSA::Instruction::setReg(int reg)
+{
+	this->reg = reg;
 }
 
 SSA::Opcode const SSA::Instruction::getOpcode()
@@ -448,6 +458,10 @@ std::string SSA::Instruction::toStr()
 	if (y)
 	{
 		s += " " + y->toStr();
+	}
+	if (reg != -1)
+	{
+		s = std::to_string(reg) + " = { " + s + " }";
 	}
 	return s;
 }

@@ -146,10 +146,11 @@ void allocateRegisters(SSA::Func* f)
 	InterferenceGraph intervals = buildIntervals(f);
 	GraphML::InterferenceGraphToGraphML(intervals,
 			"interference_graph/", ("_" + f->getName()).c_str());
+	intervals.colorGraph(NUM_REG);
 	// graph coloring
 }
 
-void allocateRegisters(SSA::IntermediateRepresentation ir)
+void allocateRegisters(SSA::IntermediateRepresentation& ir)
 {
 	allocateRegisters(ir.getMain());
 	for (SSA::Func* f : ir.getFuncs())

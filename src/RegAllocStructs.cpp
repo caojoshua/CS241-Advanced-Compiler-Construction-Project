@@ -77,7 +77,7 @@ std::list<InterferenceGraph::Node>::iterator InterferenceGraph::spillNode()
 }
 
 InterferenceGraph::InterferenceGraph(
-		std::vector<SSA::Instruction*> instructions)
+		std::vector<SSA::Instruction*> instructions, SSA::Func* f) : f(f)
 {
 	int numNodes = instructions.size();
 	adjacencyMatrix.reserve(numNodes);
@@ -152,6 +152,7 @@ void InterferenceGraph::colorGraph(int k)
 		}
 	}
 
+	// insert spill code and reconstruct interference graph
 	if (!spillSet.empty())
 	{
 		int offset = spillSet.front().instruction->getParentBB()->getParentFunction()->getLocalVariableOffset();
@@ -176,6 +177,8 @@ void InterferenceGraph::colorGraph(int k)
 			}
 			offset -= 4;
 		}
+		spillSet.front().instruction->getParentBB()->getParentFunction()->setLocalVariableOffset(offset);
+		allocateRegisters(f);
 	}
 
 	// assign lowest possible color for each node in stack
@@ -273,7 +276,7 @@ InterferenceGraph IntervalList::buildInterferenceGraph() const
 	{
 		instructions.push_back(interval.first);
 	}
-	InterferenceGraph graph(instructions);
+	InterferenceGraph graph(instructions, f);
 
 	for (auto i = intervals.cbegin(); i != intervals.cend(); ++i)
 	{

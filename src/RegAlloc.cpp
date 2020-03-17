@@ -4,6 +4,7 @@
  */
 
 #include <RegAlloc.h>
+#include "GraphMLWriter.h"
 
 void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
 {
@@ -25,6 +26,35 @@ void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
 	}
 }
 
+void insertMoveBeforePhi(SSA::Func* f)
+{
+	for (SSA::BasicBlock* b : f->getBBs())
+	{
+		for (SSA::Instruction* i : b->getInstructions())
+		{
+			if (i->getOpcode() == SSA::phi)
+			{
+				SSA::Operand* phi = i->getOperand1();
+				if (phi)
+				{
+					for (auto pair : phi->getPhiArgs())
+					{
+						switch (pair.second->getType())
+						{
+						case SSA::Operand::val:
+						case SSA::Operand::constant:
+							SSA::Instruction* mov = new SSA::Instruction(SSA::move, pair.second);
+							mov->setReg(i->getReg());
+							pair.first->emit(mov);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 /*
  * WIMMER, C.,ANDFRANZ, M.
  * Linear scan register allocation on ssa form
@@ -33,22 +63,17 @@ void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
  * Question: don't we need to include phis in liveset in loop headers
  * to propage its liveness throughout loop?
  */
-InterferenceGraph buildIntervals(SSA::Func* f)
+void allocateRegisters(SSA::Func* f)
 {
-	IntervalList intervals;
+	IntervalList intervals(f);
 	std::map<SSA::BasicBlock*, std::list<SSA::Instruction*>> liveIn;
 	std::list<SSA::BasicBlock*> BBs = f->getBBs();
 
 	// keep track of last lineIds to keep track of end of loop bodies
 	std::map<SSA::BasicBlock*, int> endLineIds;
 
-	// compute lineId, which is the number of instructions in the function
-	uint lineId = 0;
-	for (SSA::BasicBlock* b : BBs)
-	{
-		lineId += b->getInstructions().size();
-	}
-	--lineId;
+	// reset lineIds and retrieve the last lineId
+	uint lineId = f->resetLineIds();
 
 	// iterate through basic blocks and instructions in reverse order
 	for (std::list<SSA::BasicBlock*>::reverse_iterator it = BBs.rbegin(); it != BBs.rend(); ++it)
@@ -117,7 +142,6 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 				addOperandToLive(live, op2);
 			}
 			live.remove(ins);
-			ins->setId(lineId);
 			--lineId;
 		}
 
@@ -143,53 +167,21 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 		}
 		liveIn[b] = live;
 	}
-	return intervals.buildInterferenceGraph();
-}
 
-void insertMoveBeforePhi(SSA::Func* f)
-{
-	for (SSA::BasicBlock* b : f->getBBs())
-	{
-		for (SSA::Instruction* i : b->getInstructions())
-		{
-			if (i->getOpcode() == SSA::phi)
-			{
-				SSA::Operand* phi = i->getOperand1();
-				if (phi)
-				{
-					for (auto pair : phi->getPhiArgs())
-					{
-						switch (pair.second->getType())
-						{
-						case SSA::Operand::val:
-						case SSA::Operand::constant:
-							SSA::Instruction* mov = new SSA::Instruction(SSA::move, pair.second);
-							mov->setReg(i->getReg());
-							pair.first->emit(mov);
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-void allocateRegisters(SSA::Func* f)
-{
-	InterferenceGraph intervals = buildIntervals(f);
-	GraphML::InterferenceGraphToGraphML(intervals,
+	InterferenceGraph igraph = intervals.buildInterferenceGraph();
+	GraphML::InterferenceGraphToGraphML(igraph,
 			"interference_graph/", ("_" + f->getName()).c_str());
-	intervals.colorGraph(NUM_REG);
-	insertMoveBeforePhi(f);
+	igraph.colorGraph(NUM_REG);
 }
 
 void allocateRegisters(SSA::IntermediateRepresentation& ir)
 {
 	allocateRegisters(ir.getMain());
+	insertMoveBeforePhi(ir.getMain());
 	for (SSA::Func* f : ir.getFuncs())
 	{
 		allocateRegisters(f);
+		insertMoveBeforePhi(f);
 	}
 }
 

@@ -200,6 +200,7 @@ namespace SSA
 		std::list<BasicBlock*> getBBs();
 		int getLocalVariableOffset() const;
 		void setLocalVariableOffset(int i);
+		int resetLineIds();
 	};
 
 	class IntermediateRepresentation

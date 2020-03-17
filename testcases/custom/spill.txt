@@ -1,6 +1,7 @@
 
 main
 var a, b, c, d, e, f, g, h;
+array [10] arr;
 {
 	let a <- call InputNum();
 	let b <- call InputNum();

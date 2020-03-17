@@ -519,6 +519,19 @@ void SSA::Func::setLocalVariableOffset(int i)
 	localVariableOffset = i;
 }
 
+int SSA::Func::resetLineIds()
+{
+	uint lineId = 0;
+	for (BasicBlock* b : BBs)
+	{
+		for (Instruction* i : b->getInstructions())
+		{
+			i->setId(lineId++);
+		}
+	}
+	return lineId;
+}
+
 SSA::IntermediateRepresentation::~IntermediateRepresentation()
 {
 	for (Func* f : funcs)

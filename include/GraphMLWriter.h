@@ -3,6 +3,9 @@
  * Author: Joshua Cao
  */
 
+#ifndef SSATOGRAPHML_H
+#define SSATOGRAPHML_H
+
 #include "SSA.h"
 #include "RegAllocStructs.h"
 #include <iostream>
@@ -10,9 +13,6 @@
 #include <string>
 #include <map>
 #include <utility>
-
-#ifndef SSATOGRAPHML_H
-#define SSATOGRAPHML_H
 
 extern std::string currFileName;
 

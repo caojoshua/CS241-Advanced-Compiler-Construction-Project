@@ -101,7 +101,10 @@ InterferenceGraph buildIntervals(SSA::Func* f)
 			// output operand
 			// compute setFrom for phi in testing, in case it is not used later
 			// ideally this would be dead-code eliminated
-			intervals.setFrom(ins, lineId);
+			if (ins->hasOutput())
+			{
+				intervals.setFrom(ins, lineId);
+			}
 
 			if (ins->getOpcode() != SSA::phi)
 			{

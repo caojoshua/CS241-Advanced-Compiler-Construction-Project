@@ -286,6 +286,27 @@ int SSA::Instruction::getReg() const
 	return reg;
 }
 
+bool SSA::Instruction::hasOutput() const
+{
+	switch (op)
+	{
+	case store:
+	case end:
+	case bra:
+	case bne:
+	case beq:
+	case ble:
+	case blt:
+	case bge:
+	case bgt:
+	case write:
+	case writeNL:
+		return false;
+	// TODO: handle whether there is return for call
+	}
+	return true;
+}
+
 void SSA::Instruction::setId(uint id)
 {
 	this->id = id;

@@ -138,6 +138,7 @@ namespace SSA
 		uint getId() const;
 		BasicBlock* getParentBB() const;
 		int getReg() const;
+		bool hasOutput() const;
 		void setId(uint id);
 		void setParentBB(BasicBlock* b);
 		void setReg(int reg);

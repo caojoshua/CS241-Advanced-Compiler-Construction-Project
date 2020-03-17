@@ -31,11 +31,12 @@ private:
 	{
 	private:
 		static int totalOffset;
+		Parser* parser;
 		int offset;
 		std::vector<int> dims;
 	public:
-		Array() : offset(totalOffset) {}
-		Array(std::vector<int> dims);
+		Array() : parser(nullptr), offset(0) {}
+		Array(Parser* parser, std::vector<int> dims);
 		Array& operator=(const Array other);
 		static void resetTotalOffset();
 		int getOffset();

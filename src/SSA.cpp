@@ -48,6 +48,11 @@ std::list<SSA::Operand*> SSA::Operand::getArgs() const
 	return std::list<SSA::Operand*>();
 }
 
+bool SSA::Operand::containsArg(SSA::Operand* o)
+{
+	return false;
+}
+
 std::string SSA::Operand::getVarName() const
 {
 	return "";
@@ -83,6 +88,19 @@ SSA::Instruction* SSA::ValOperand::getInstruction()
 	return ins;
 }
 
+void SSA::ValOperand::replaceArg(Operand* oldOp, Operand* newOp)
+{
+	if (equals(oldOp))
+	{
+		ins = newOp->getInstruction();
+	}
+}
+
+bool SSA::ValOperand::containsArg(Operand* o)
+{
+	return equals(o);
+}
+
 SSA::CallOperand::CallOperand(std::string funcName, std::list<Operand*> args)
 {
 	f = new FunctionCall();
@@ -114,11 +132,23 @@ void SSA::CallOperand::replaceArg(Operand* oldOp, Operand* newOp)
 {
 	for (SSA::Operand*& o : f->args)
 	{
-		if (o == oldOp)
+		if (o->equals(oldOp))
 		{
 			o = newOp;
 		}
 	}
+}
+
+bool SSA::CallOperand::containsArg(Operand* o)
+{
+	for (Operand* arg : f->args)
+	{
+		if (arg->equals(o))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 SSA::PhiOperand::PhiOperand(std::string varName, BasicBlock* b, Operand* o) : varName(varName)
@@ -169,11 +199,23 @@ void SSA::PhiOperand::replaceArg(Operand* oldOp, Operand* newOp)
 {
 	for (std::pair<BasicBlock*, Operand*> pair : args)
 	{
-		if (pair.second == oldOp)
+		if (pair.second->equals(oldOp))
 		{
 			args[pair.first] = newOp;
 		}
 	}
+}
+
+bool SSA::PhiOperand::containsArg(Operand* o)
+{
+	for (std::pair<BasicBlock*, Operand*> pair : args)
+	{
+		if (pair.second->equals(o))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 std::map<SSA::BasicBlock*, SSA::Operand*> SSA::PhiOperand::getPhiArgs() const
@@ -219,6 +261,11 @@ SSA::Instruction::~Instruction()
 //	delete y;
 }
 
+SSA::Instruction* SSA::Instruction::clone() const
+{
+	return new Instruction(*this);
+}
+
 bool SSA::Instruction::equals(Instruction* other)
 {
 	return op == other->op && x->equals(other->x) && y->equals(other->y);
@@ -229,6 +276,11 @@ uint SSA::Instruction::getId() const
 	return id;
 }
 
+SSA::BasicBlock* SSA::Instruction::getParentBB() const
+{
+	return parentBB;
+}
+
 int SSA::Instruction::getReg() const
 {
 	return reg;
@@ -237,6 +289,11 @@ int SSA::Instruction::getReg() const
 void SSA::Instruction::setId(uint id)
 {
 	this->id = id;
+}
+
+void SSA::Instruction::setParentBB(BasicBlock* b)
+{
+	parentBB = b;
 }
 
 void SSA::Instruction::setReg(int reg)
@@ -269,27 +326,78 @@ void SSA::Instruction::setOperand2(Operand* o)
 	y = o;
 }
 
+void SSA::Instruction::insertBefore(Instruction* other)
+{
+	parentBB->emitBefore(other, this);
+}
+
+void SSA::Instruction::insertAfter(Instruction* other)
+{
+	parentBB->emitAfter(other, this);
+}
+
+void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp)
+{
+	if (x)
+	{
+		x->replaceArg(oldOp, newOp);
+	}
+	if (y)
+	{
+		y->replaceArg(oldOp, newOp);
+	}
+}
+
+bool SSA::Instruction::containsArg(Operand* o) const
+{
+	return (x && x->containsArg(o)) || (y && y->containsArg(o));
+}
+
 void SSA::Instruction::resetId()
 {
 	idCount = 0;
 }
 
+std::list<SSA::Instruction*>::iterator SSA::BasicBlock::getInstructionIter(Instruction* i)
+{
+	std::list<SSA::Instruction*>::iterator iter;
+	for (iter = instructions.begin(); iter != instructions.end(); ++iter)
+	{
+		if (*iter == i)
+		{
+			return iter;
+		}
+	}
+	return iter;
+}
+
 SSA::BasicBlock::~BasicBlock()
 {
-	for (Instruction* i : code)
+	for (Instruction* i : instructions)
 	{
 		// delete i;
 	}
 }
 
+SSA::Func* SSA::BasicBlock::getParentFunction() const
+{
+	return parentFunction;
+}
+
+void SSA::BasicBlock::setParentFunction(Func* f)
+{
+	parentFunction = f;
+}
+
 void SSA::BasicBlock::emit(Instruction *ins)
 {
-	code.push_back(ins);
+	ins->setParentBB(this);
+	instructions.push_back(ins);
 }
 
 void SSA::BasicBlock::emit(SSA::ValOperand* op)
 {
-	code.push_back(op->getInstruction());
+	emit(op->getInstruction());
 }
 
 void SSA::BasicBlock::emit(std::list<Instruction*> ins)
@@ -302,12 +410,33 @@ void SSA::BasicBlock::emit(std::list<Instruction*> ins)
 
 void SSA::BasicBlock::emitFront(Instruction *ins)
 {
-	code.push_front(ins);
+	ins->setParentBB(this);
+	instructions.push_front(ins);
+}
+
+void SSA::BasicBlock::emitBefore(Instruction* x, Instruction* y)
+{
+	auto iter = getInstructionIter(y);
+	if (iter != instructions.end())
+	{
+		x->setParentBB(this);
+		instructions.insert(iter, x);
+	}
+}
+
+void SSA::BasicBlock::emitAfter(Instruction* x, Instruction* y)
+{
+	auto iter = getInstructionIter(y);
+	if (iter != instructions.end())
+	{
+		x->setParentBB(this);
+		instructions.insert(++iter, x);
+	}
 }
 
 std::list<SSA::Instruction*>& SSA::BasicBlock::getInstructions()
 {
-	return code;
+	return instructions;
 }
 
 void SSA::BasicBlock::addPredecessor(BasicBlock* pred)
@@ -345,6 +474,7 @@ SSA::Func::~Func()
 
 void SSA::Func::emit(BasicBlock *bb)
 {
+	bb->setParentFunction(this);
 	BBs.push_back(bb);
 }
 
@@ -356,6 +486,16 @@ std::string SSA::Func::getName()
 std::list<SSA::BasicBlock*> SSA::Func::getBBs()
 {
 	return BBs;
+}
+
+int SSA::Func::getLocalVariableOffset() const
+{
+	return localVariableOffset;
+}
+
+void SSA::Func::setLocalVariableOffset(int i)
+{
+	localVariableOffset = i;
 }
 
 SSA::IntermediateRepresentation::~IntermediateRepresentation()
@@ -461,7 +601,7 @@ std::string SSA::Instruction::toStr()
 	}
 	if (reg != -1)
 	{
-		s = std::to_string(reg) + " = { " + s + " }";
+		s = "R" + std::to_string(reg) + " = { " + s + " }";
 	}
 	return s;
 }

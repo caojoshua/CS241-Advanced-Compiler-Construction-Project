@@ -1,0 +1,14 @@
+
+main
+var a, b, c, d, e, f, g, h;
+{
+	let a <- call InputNum();
+	let b <- call InputNum();
+	let c <- call InputNum();
+	let d <- call InputNum();
+	let e <- call InputNum();
+	let f <- call InputNum();
+	let g <- call InputNum();
+	let h <- call InputNum();
+	call OutputNum(a + b + c + d + e + f + g + h)
+}.

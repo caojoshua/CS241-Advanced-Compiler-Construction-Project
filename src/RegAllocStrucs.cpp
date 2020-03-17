@@ -32,6 +32,15 @@ InterferenceGraph::Node* InterferenceGraph::getNode(SSA::Instruction *i)
 	return nullptr;
 }
 
+void InterferenceGraph::clearMatrixEdges(Node n)
+{
+	for (int i = 0; i < adjacencyMatrix.size(); ++i)
+	{
+		adjacencyMatrix[n.id][i] = false;
+		adjacencyMatrix[i][n.id] = false;
+	}
+}
+
 InterferenceGraph::Node* InterferenceGraph::popNode(int k)
 {
 	for (std::list<Node>::iterator iter = nodes.begin(); iter != nodes.end();
@@ -41,18 +50,14 @@ InterferenceGraph::Node* InterferenceGraph::popNode(int k)
 		int sum = 0;
 		for (int i = 0; i < adjacencyMatrix.size(); ++i)
 		{
-			if (adjacencyMatrix[n->id][i])
+			if (adjacencyMatrix[n->id][i] && n->id != i)
 			{
 				sum += 1;
 			}
 		}
 		if (sum < k)
 		{
-			for (int i = 0; i < adjacencyMatrix.size(); ++i)
-			{
-				adjacencyMatrix[n->id][i] = false;
-				adjacencyMatrix[i][n->id] = false;
-			}
+			clearMatrixEdges(*n);
 			nodes.erase(iter);
 			return n;
 		}
@@ -142,14 +147,35 @@ void InterferenceGraph::colorGraph(int k)
 		{
 			std::list<Node>::iterator i = spillNode();
 			spillSet.push_back(*i);
+			clearMatrixEdges(*i);
 			nodes.erase(i);
 		}
 	}
 
 	if (!spillSet.empty())
 	{
-		// TODO: insert spill code {store after def; load before use}
-		// need to insert this into SSA if not doing code gen
+		int offset = spillSet.front().instruction->getParentBB()->getParentFunction()->getLocalVariableOffset();
+		for (Node n : spillSet)
+		{
+			n.instruction->insertAfter(new SSA::Instruction(SSA::store,
+					new SSA::ValOperand(n.instruction), new SSA::ConstOperand(offset)));
+			for (SSA::BasicBlock* b : n.instruction->getParentBB()->getParentFunction()->getBBs())
+			{
+				for (SSA::Instruction* i : b->getInstructions())
+				{
+					SSA::ValOperand* val = new SSA::ValOperand(n.instruction);
+					// dont replace args in the newly inserted store
+					// can be better by iterating from the current instruction, but more work
+					if (i->containsArg(val) && i->getOpcode() != SSA::store)
+					{
+						SSA::Instruction* load = new SSA::Instruction(SSA::load, new SSA::ConstOperand(offset));
+						i->insertBefore(load);
+						i->replaceArg(val, new SSA::ValOperand(load));
+					}
+				}
+			}
+			offset -= 4;
+		}
 	}
 
 	// assign lowest possible color for each node in stack

@@ -16,6 +16,7 @@ Parser::Parser(char const* s) :
 SSA::IntermediateRepresentation& Parser::parse() {
 	SSA::Instruction::resetId();
 	Array::resetTotalOffset();
+	func = new SSA::Func(scan.id);
 	mustParse(LexAnalysis::main);
 	declarationList();
 	func = new SSA::Func("main");
@@ -29,7 +30,7 @@ SSA::IntermediateRepresentation& Parser::parse() {
 
 int Parser::Array::totalOffset = 0;
 
-Parser::Array::Array(std::vector<int> dims) : dims(dims)
+Parser::Array::Array(Parser* parser, std::vector<int> dims) : parser(parser), dims(dims)
 {
 	int length = 1;
 	for (int dim : dims)
@@ -38,6 +39,7 @@ Parser::Array::Array(std::vector<int> dims) : dims(dims)
 	}
 	totalOffset -= length * INT_SIZE;
 	offset = totalOffset;
+	parser->func->setLocalVariableOffset(totalOffset);
 }
 
 Parser::Array& Parser::Array::operator=(const Array other)
@@ -67,7 +69,10 @@ std::vector<int> Parser::Array::getDims() const
 void Parser::function()
 {
 	mustParse(LexAnalysis::func);
-	func = new SSA::Func(scan.id);
+	if (scan.tk != LexAnalysis::main)
+	{
+		func = new SSA::Func(scan.id);
+	}
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)
@@ -137,12 +142,12 @@ void Parser::arrayDeclartion() {
 		mustParse(LexAnalysis::close_bracket);
 	} while (scan.tk == LexAnalysis::open_bracket);
 
-	arrayMap[scan.id] = Array(dims);
+	arrayMap[scan.id] = Array(this, dims);
 	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
-		arrayMap[scan.id] = Array(dims);
+		arrayMap[scan.id] = Array(this, dims);
 		mustParse(LexAnalysis::id_tk);
 	}
 	mustParse(LexAnalysis::semicolon);
@@ -890,6 +895,7 @@ void Parser::emitBB(SSA::BasicBlock* bb)
 		func->emit(bb);
 	}
 }
+
 void Parser::emit(SSA::BasicBlock* bb, SSA::Instruction* ins)
 {
 	if (bb && ins)

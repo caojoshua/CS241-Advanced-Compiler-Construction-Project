@@ -34,6 +34,7 @@ private:
 	// Register Allocation & Spilling via Graph Coloring
 	std::vector<std::vector<bool>> adjacencyMatrix;
 	std::list<Node> nodes;
+	void clearMatrixEdges(Node n);
 	Node* getNode(SSA::Instruction* i);
 	Node* popNode(int k);
 	std::list<Node>::iterator spillNode();

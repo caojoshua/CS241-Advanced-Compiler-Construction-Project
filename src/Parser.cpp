@@ -334,7 +334,7 @@ void Parser::conditional()
 	ins = cse;
 
 	currBB->emit(ins);
-	currBB->emit(new SSA::Instruction(op));
+	currBB->emit(new SSA::Instruction(op, new SSA::ValOperand(ins)));
 
 	if (!useChain.empty())
 	{

@@ -156,6 +156,7 @@ void InterferenceGraph::colorGraph(int k)
 	if (!spillSet.empty())
 	{
 		int offset = spillSet.front().instruction->getParentBB()->getParentFunction()->getLocalVariableOffset();
+		printf("%d\n", offset);
 		for (Node n : spillSet)
 		{
 			n.instruction->insertAfter(new SSA::Instruction(SSA::store,

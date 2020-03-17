@@ -16,10 +16,9 @@ Parser::Parser(char const* s) :
 SSA::IntermediateRepresentation& Parser::parse() {
 	SSA::Instruction::resetId();
 	Array::resetTotalOffset();
-	func = new SSA::Func(scan.id);
+	func = new SSA::Func("main");
 	mustParse(LexAnalysis::main);
 	declarationList();
-	func = new SSA::Func("main");
 	currBB = new SSA::BasicBlock();
 	functionBody();
 	mustParse(LexAnalysis::period);
@@ -69,10 +68,7 @@ std::vector<int> Parser::Array::getDims() const
 void Parser::function()
 {
 	mustParse(LexAnalysis::func);
-	if (scan.tk != LexAnalysis::main)
-	{
-		func = new SSA::Func(scan.id);
-	}
+	func = new SSA::Func(scan.id);
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)

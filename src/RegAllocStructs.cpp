@@ -77,7 +77,7 @@ std::list<InterferenceGraph::Node>::iterator InterferenceGraph::spillNode()
 }
 
 InterferenceGraph::InterferenceGraph(
-		std::vector<SSA::Instruction*> instructions, SSA::Func* f) : f(f)
+		std::vector<SSA::Instruction*> instructions, SSA::Function* f) : f(f)
 {
 	int numNodes = instructions.size();
 	adjacencyMatrix.reserve(numNodes);
@@ -155,13 +155,12 @@ void InterferenceGraph::colorGraph(int k)
 	// insert spill code and reconstruct interference graph
 	if (!spillSet.empty())
 	{
-		int offset = spillSet.front().instruction->getParentBB()->getParentFunction()->getLocalVariableOffset();
-		printf("%d\n", offset);
+		int offset = spillSet.front().instruction->getParent()->getParent()->getLocalVariableOffset();
 		for (Node n : spillSet)
 		{
 			n.instruction->insertAfter(new SSA::Instruction(SSA::store,
 					new SSA::ValOperand(n.instruction), new SSA::ConstOperand(offset)));
-			for (SSA::BasicBlock* b : n.instruction->getParentBB()->getParentFunction()->getBBs())
+			for (SSA::BasicBlock* b : n.instruction->getParent()->getParent()->getBBs())
 			{
 				for (SSA::Instruction* i : b->getInstructions())
 				{
@@ -178,7 +177,7 @@ void InterferenceGraph::colorGraph(int k)
 			}
 			offset -= 4;
 		}
-		spillSet.front().instruction->getParentBB()->getParentFunction()->setLocalVariableOffset(offset);
+		spillSet.front().instruction->getParent()->getParent()->setLocalVariableOffset(offset);
 		allocateRegisters(f);
 	}
 

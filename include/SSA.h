@@ -15,19 +15,20 @@ namespace SSA
 {
 
 	enum Opcode {add, sub, mul, div, cmp, adda, load, store, move, phi, end,
-		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call};
+		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call, ret};
 
 	// forward declarations
 	class Instruction;
 	class BasicBlock;
-	class Func;
+	class Function;
+	class Module;
 
 	class Operand
 	{
 	public:
 		struct FunctionCall
 		{
-			std::string funcName;
+			Function* function;
 			std::list<Operand*> args;
 		};
 
@@ -69,12 +70,13 @@ namespace SSA
 	class CallOperand : public Operand
 	{
 	private:
-		FunctionCall* f;
+		FunctionCall* functionCall;
 	public:
-		CallOperand(FunctionCall* f) : f(f) {}
-		CallOperand(std::string funcName, std::list<Operand*> args);
+		CallOperand(FunctionCall* f) : functionCall(f) {}
+		CallOperand(Function* f, std::list<Operand*> args);
 		virtual Operand* clone();
 		Type getType();
+		FunctionCall* getFunctionCall() const;
 		std::string getFuncName() const;
 		std::list<Operand*> getArgs() const;
 		void replaceArg(SSA::Operand* oldOp, SSA::Operand* newOp);
@@ -119,7 +121,7 @@ namespace SSA
 	private:
 		static uint idCount;
 		uint id;
-		BasicBlock* parentBB;
+		BasicBlock* parent;
 		int reg;
 		Opcode op;
 		Operand* x;
@@ -128,19 +130,19 @@ namespace SSA
 	Instruction(Opcode op) : Instruction(op, nullptr, nullptr) {};
 		Instruction(Opcode op, Operand* x) : Instruction(op, x, nullptr) {};
 		Instruction(Opcode op, Operand* x, Operand* y)
-					: op(op), parentBB(nullptr), x(x), y(y), id(idCount++), reg(-1) {};
+					: op(op), parent(nullptr), x(x), y(y), id(idCount++), reg(-1) {};
 		Instruction(const Instruction &other)
-			: op(other.op), x(other.x), y(other.y), parentBB(other.parentBB),
+			: op(other.op), x(other.x), y(other.y), parent(other.parent),
 			  reg(other.reg), id(other.id) {}
 		virtual ~Instruction();
 		Instruction* clone() const;
 		virtual bool equals(Instruction* other);
 		uint getId() const;
-		BasicBlock* getParentBB() const;
+		BasicBlock* getParent() const;
 		int getReg() const;
 		bool hasOutput() const;
 		void setId(uint id);
-		void setParentBB(BasicBlock* b);
+		void setParent(BasicBlock* b);
 		void setReg(int reg);
 		Opcode const getOpcode();
 		Operand* const getOperand1();
@@ -158,18 +160,18 @@ namespace SSA
 	class BasicBlock
 	{
 	private:
-		Func* parentFunction;
+		Function* parent;
 		std::list<Instruction*> instructions;
 		std::list<BasicBlock*> pred;
 		std::list<BasicBlock*> succ;
 		std::list<Instruction*>::iterator getInstructionIter(Instruction* i);
 		bool loopHeader;
 	public:
-		BasicBlock() : parentFunction(nullptr), loopHeader(false) {}
-		BasicBlock(bool loopHeader) : parentFunction(nullptr), loopHeader(loopHeader) {}
+		BasicBlock() : parent(nullptr), loopHeader(false) {}
+		BasicBlock(bool loopHeader) : parent(nullptr), loopHeader(loopHeader) {}
 		~BasicBlock();
-		Func* getParentFunction() const;
-		void setParentFunction(Func* f);
+		Function* getParent() const;
+		void setParent(Function* f);
 		void emit(Instruction* ins);
 		void emit(SSA::ValOperand*);
 		void emit(std::list<Instruction*> ins);
@@ -184,38 +186,43 @@ namespace SSA
 		bool isLoopHeader() const;
 	};
 
-	class Func
+	class Function
 	{
 	private:
 		std::string name;
 		std::list<BasicBlock*> BBs;
+		bool isVoidReturn;
 		// keep track of locals offset for spilling later
 		// optimally keep track of some sort of mapping for better optimizations
 		int localVariableOffset;
+		Module* parent;
 	public:
-		Func(std::string name) : name(name), localVariableOffset(0) {}
-		~Func();
+		Function(Module* module, std::string name)
+			: name(name), isVoidReturn(true), localVariableOffset(0), parent(module) {}
+		Function(Module* module, std::string name, bool isVoid)
+					: name(name), isVoidReturn(isVoid), localVariableOffset(0), parent(module) {}
+		~Function();
 		void emit(BasicBlock* bb);
 		std::string getName();
+		bool isVoid() const;
 		std::list<BasicBlock*> getBBs();
 		int getLocalVariableOffset() const;
+		void setIsVoid(bool isVoid);
 		void setLocalVariableOffset(int i);
 		int resetLineIds();
 	};
 
-	class IntermediateRepresentation
+	class Module
 	{
 	private:
-		Func* mainFunc;
-		std::list<Func*> funcs;
+		std::list<Function*> funcs;
 	public:
-		IntermediateRepresentation() : mainFunc(nullptr) {}
-		~IntermediateRepresentation();
-		void emitMain(Func* f);
-		void emit(Func* f);
-		Func* const getMain();
-		Func* const getFunc(std::string name);
-		std::list<Func*>& getFuncs();
+		Module();
+		~Module();
+		void emit(Function* f);
+		Function* const getFunc(std::string name);
+		std::list<Function*>& getFuncs();
+		Function* getFunction(std::string name) const;
 	};
 
 	std::string opToStr(Opcode op);

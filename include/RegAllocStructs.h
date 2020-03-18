@@ -35,14 +35,14 @@ private:
 	// Register Allocation & Spilling via Graph Coloring
 	std::vector<std::vector<bool>> adjacencyMatrix;
 	std::list<Node> nodes;
-	SSA::Func* f;
+	SSA::Function* f;
 
 	void clearMatrixEdges(Node n);
 	Node* getNode(SSA::Instruction* i);
 	Node* popNode(int k);
 	std::list<Node>::iterator spillNode();
 public:
-	InterferenceGraph(std::vector<SSA::Instruction*> instructions, SSA::Func* f);
+	InterferenceGraph(std::vector<SSA::Instruction*> instructions, SSA::Function* f);
 	void addEdge(SSA::Instruction* x, SSA::Instruction* y);
 	std::list<Node> getNodes() const;
 	void colorGraph(int k);
@@ -64,10 +64,10 @@ public:
 		bool intersects(Interval other) const;
 	};
 private:
-	SSA::Func* f;
+	SSA::Function* f;
 	std::map<SSA::Instruction*, Interval> intervals;
 public:
-	IntervalList(SSA::Func* f) : f(f) {}
+	IntervalList(SSA::Function* f) : f(f) {}
 	std::list<std::pair<int, int>> getRanges(SSA::Instruction* i) const;
 	void setFrom(SSA::Instruction* i, int from);
 	void addRange(SSA::Instruction* i, int from, int to);

@@ -5,31 +5,36 @@
 
 #include "Parser.h"
 
-Parser::Parser(char const* s) :
-	scan(s), func(nullptr), currBB(nullptr), joinBB(nullptr)
+Parser::Parser(char const *s) :
+		scan(s), module(new SSA::Module()), func(nullptr), currBB(nullptr), joinBB(
+				nullptr)
 {
 	scan.next();
 	pushVarMap();
 	pushCSEmap();
 }
 
-SSA::IntermediateRepresentation& Parser::parse() {
+SSA::Module* Parser::parse()
+{
 	SSA::Instruction::resetId();
 	Array::resetTotalOffset();
-	func = new SSA::Func("main");
+	SSA::Function* mainFunc = new SSA::Function(module, "main");
+	func = mainFunc;
 	mustParse(LexAnalysis::main);
 	declarationList();
 	currBB = new SSA::BasicBlock();
+	func = mainFunc;
 	functionBody();
 	mustParse(LexAnalysis::period);
 	emitBB(currBB);
-	IR.emitMain(func);
-	return IR;
+	module->emit(mainFunc);
+	return module;
 }
 
 int Parser::Array::totalOffset = 0;
 
-Parser::Array::Array(Parser* parser, std::vector<int> dims) : parser(parser), dims(dims)
+Parser::Array::Array(Parser *parser, std::vector<int> dims) :
+		parser(parser), dims(dims)
 {
 	int length = 1;
 	for (int dim : dims)
@@ -63,12 +68,11 @@ std::vector<int> Parser::Array::getDims() const
 	return dims;
 }
 
-
 // TODO: store function somewhere, still not sure how to handle functions
 void Parser::function()
 {
 	mustParse(LexAnalysis::func);
-	func = new SSA::Func(scan.id);
+	func = new SSA::Function(module, scan.id);
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)
@@ -88,10 +92,11 @@ void Parser::function()
 	mustParse(LexAnalysis::semicolon);
 }
 
-void Parser::declarationList() {
+void Parser::declarationList()
+{
 	while (true)
 	{
-		switch(scan.tk)
+		switch (scan.tk)
 		{
 		case LexAnalysis::var:
 			varDeclaration();
@@ -127,7 +132,8 @@ void Parser::varDeclareList()
 	}
 }
 
-void Parser::arrayDeclartion() {
+void Parser::arrayDeclartion()
+{
 	mustParse(LexAnalysis::array);
 	std::vector<int> dims;
 	do
@@ -158,10 +164,8 @@ void Parser::functionBody()
 
 void Parser::statementList()
 {
-	if (scan.tk != LexAnalysis::let
-			&& scan.tk != LexAnalysis::return_tk
-			&& scan.tk != LexAnalysis::call
-			&& scan.tk != LexAnalysis::while_tk
+	if (scan.tk != LexAnalysis::let && scan.tk != LexAnalysis::return_tk
+			&& scan.tk != LexAnalysis::call && scan.tk != LexAnalysis::while_tk
 			&& scan.tk != LexAnalysis::if_tk)
 	{
 		return;
@@ -176,7 +180,7 @@ void Parser::statementList()
 
 void Parser::statement()
 {
-	switch(scan.tk)
+	switch (scan.tk)
 	{
 	case LexAnalysis::let:
 		assignment();
@@ -201,12 +205,12 @@ void Parser::statement()
 void Parser::whileLoop()
 {
 	mustParse(LexAnalysis::while_tk);
-	SSA::BasicBlock* orig = currBB;
+	SSA::BasicBlock *orig = currBB;
 	emitBB(orig);
 	currBB = new SSA::BasicBlock(true);
 	linkBB(orig, currBB);
 	joinBB = currBB;
-	SSA::BasicBlock* oldJoin = joinBB;
+	SSA::BasicBlock *oldJoin = joinBB;
 	emitBB(joinBB);
 	pushUseChain();
 	conditional();
@@ -245,10 +249,10 @@ void Parser::ifStatement()
 	mustParse(LexAnalysis::then);
 
 	emitBB(currBB);
-	SSA::BasicBlock* origBB = currBB;
+	SSA::BasicBlock *origBB = currBB;
 	currBB = new SSA::BasicBlock();
 	joinBB = new SSA::BasicBlock();
-	SSA::BasicBlock* oldJoin = joinBB;
+	SSA::BasicBlock *oldJoin = joinBB;
 	linkBB(origBB, currBB);
 
 	pushVarMap();
@@ -274,8 +278,7 @@ void Parser::ifStatement()
 		emitBB(currBB);
 		joinBB = oldJoin;
 		linkBB(currBB, joinBB);
-	}
-	else
+	} else
 	{
 		joinBB = oldJoin;
 		linkBB(origBB, joinBB);
@@ -289,7 +292,7 @@ void Parser::ifStatement()
 void Parser::conditional()
 {
 	SSA::Opcode op;
-	SSA::Operand* x = expression();
+	SSA::Operand *x = expression();
 	switch (scan.tk)
 	{
 	case LexAnalysis::e:
@@ -320,9 +323,9 @@ void Parser::conditional()
 		err();
 	}
 
-	SSA::Operand* y = expression();
-	SSA::Instruction* ins = new SSA::Instruction(SSA::cmp, x, y);
-	SSA::Instruction* cse = cseCheck(ins);
+	SSA::Operand *y = expression();
+	SSA::Instruction *ins = new SSA::Instruction(SSA::cmp, x, y);
+	SSA::Instruction *cse = cseCheck(ins);
 	if (cse != ins)
 	{
 		return;
@@ -342,11 +345,16 @@ void Parser::conditional()
 void Parser::returnStatement()
 {
 	mustParse(LexAnalysis::return_tk);
-	if (scan.tk == LexAnalysis::id_tk
-			|| scan.tk == LexAnalysis::num_tk
+	if (scan.tk == LexAnalysis::id_tk || scan.tk == LexAnalysis::num_tk
 			|| scan.tk == LexAnalysis::call)
 	{
-		expression();
+		SSA::Operand* returnVal = expression();
+		emit(currBB, new SSA::Instruction(SSA::ret, returnVal));
+		func->setIsVoid(false);
+	} else
+	{
+		emit(currBB, new SSA::Instruction(SSA::ret));
+		func->setIsVoid(true);
 	}
 }
 
@@ -370,12 +378,13 @@ SSA::Operand* Parser::callStatement()
 		}
 		mustParse(LexAnalysis::close_paren);
 	}
-	SSA::CallOperand* callOp = new SSA::CallOperand(funcName, args);
-	SSA::Instruction* ins = new SSA::Instruction(SSA::call, callOp);
+	SSA::CallOperand *callOp = new SSA::CallOperand(
+			module->getFunction(funcName), args);
+	SSA::Instruction *ins = new SSA::Instruction(SSA::call, callOp);
 
 	if (!useChain.empty())
 	{
-		for (SSA::Operand* arg : args)
+		for (SSA::Operand *arg : args)
 		{
 			insertIntoUseChain(arg, ins);
 		}
@@ -393,7 +402,7 @@ void Parser::assignment()
 	// array assignment
 	if (scan.tk == LexAnalysis::open_bracket)
 	{
-		SSA::Operand* memLoc = arrayIndexReference();
+		SSA::Operand *memLoc = arrayIndexReference();
 		mustParse(LexAnalysis::assign);
 		emit(currBB, new SSA::Instruction(SSA::store, expression(), memLoc));
 	}
@@ -401,27 +410,25 @@ void Parser::assignment()
 	else
 	{
 		mustParse(LexAnalysis::assign);
-		SSA::Operand* op = expression();
+		SSA::Operand *op = expression();
 		assignVarValue(varName, op);
 	}
 }
 
 SSA::Operand* Parser::expression()
 {
-	SSA::Operand* x = term();
+	SSA::Operand *x = term();
 	while (true)
 	{
 		if (scan.tk == LexAnalysis::add)
 		{
 			mustParse(LexAnalysis::add);
 			x = compute(add, x, term());
-		}
-		else if (scan.tk == LexAnalysis::sub)
+		} else if (scan.tk == LexAnalysis::sub)
 		{
 			mustParse(LexAnalysis::sub);
 			x = compute(sub, x, term());
-		}
-		else
+		} else
 		{
 			break;
 		}
@@ -431,20 +438,18 @@ SSA::Operand* Parser::expression()
 
 SSA::Operand* Parser::term()
 {
-	SSA::Operand* x = factor();
+	SSA::Operand *x = factor();
 	while (true)
 	{
 		if (scan.tk == LexAnalysis::mul)
 		{
 			mustParse(LexAnalysis::mul);
 			x = compute(mul, x, factor());
-		}
-		else if (scan.tk == LexAnalysis::div)
+		} else if (scan.tk == LexAnalysis::div)
 		{
 			mustParse(LexAnalysis::div);
 			x = compute(div, x, factor());
-		}
-		else
+		} else
 		{
 			break;
 		}
@@ -454,20 +459,18 @@ SSA::Operand* Parser::term()
 
 SSA::Operand* Parser::factor()
 {
-	SSA::Operand* x;
-	if(scan.tk == LexAnalysis::open_paren)
+	SSA::Operand *x;
+	if (scan.tk == LexAnalysis::open_paren)
 	{
 		mustParse(LexAnalysis::open_paren);
 		x = expression();
 		mustParse(LexAnalysis::close_paren);
-	}
-	else if (scan.tk == LexAnalysis::num_tk
-			|| scan.tk == LexAnalysis::id_tk
+	} else if (scan.tk == LexAnalysis::num_tk || scan.tk == LexAnalysis::id_tk
 			|| scan.tk == LexAnalysis::call)
 	{
 		x = value();
-	}
-	else{
+	} else
+	{
 		err();
 	}
 	return x;
@@ -479,12 +482,10 @@ SSA::Operand* Parser::value()
 	{
 		mustParse(LexAnalysis::num_tk);
 		return new SSA::ConstOperand(scan.num);
-	}
-	else if (scan.tk == LexAnalysis::call)
+	} else if (scan.tk == LexAnalysis::call)
 	{
 		return callStatement();
-	}
-	else if (scan.tk == LexAnalysis::id_tk)
+	} else if (scan.tk == LexAnalysis::id_tk)
 	{
 		return lvalue();
 	}
@@ -498,12 +499,11 @@ SSA::Operand* Parser::lvalue()
 	mustParse(LexAnalysis::id_tk);
 	if (scan.tk == LexAnalysis::open_bracket)
 	{
-		SSA::Operand* memLoc = arrayIndexReference();
-		SSA::Instruction* ins = new SSA::Instruction(SSA::load, memLoc);
+		SSA::Operand *memLoc = arrayIndexReference();
+		SSA::Instruction *ins = new SSA::Instruction(SSA::load, memLoc);
 		emit(currBB, ins);
 		return new SSA::ValOperand(ins);
-	}
-	else
+	} else
 	{
 		return getVarValue(name);
 	}
@@ -528,19 +528,20 @@ SSA::Operand* Parser::arrayIndexReference()
 
 	if (numDims != expectedNumDims)
 	{
-		std::cerr << scan.fname << ":" << scan.linenum << " Array has " <<
-				expectedNumDims << " but tried to access with " << numDims
+		std::cerr << scan.fname << ":" << scan.linenum << " Array has "
+				<< expectedNumDims << " but tried to access with " << numDims
 				<< " dimensions" << std::endl;
-			exit(1);
+		exit(1);
 	}
 
 	// map multidimensional indices to flat row-order index
-	int lastDim = numDims -1;
+	int lastDim = numDims - 1;
 	int prod = arrDims[lastDim];
-	SSA::Operand* index = accessDims[lastDim];
+	SSA::Operand *index = accessDims[lastDim];
 	for (int i = lastDim - 1; i >= 0; --i)
 	{
-		SSA::Operand* o = compute(mul, accessDims[i], new SSA::ConstOperand(prod));
+		SSA::Operand *o = compute(mul, accessDims[i],
+				new SSA::ConstOperand(prod));
 		index = compute(add, index, o);
 		prod *= arrDims[i];
 	}
@@ -550,13 +551,14 @@ SSA::Operand* Parser::arrayIndexReference()
 	return index;
 }
 
-SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
+SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand *x, SSA::Operand *y)
 {
 	// constant folding
-	if (x->getType() == SSA::Operand::constant && y->getType() == SSA::Operand::constant)
+	if (x->getType() == SSA::Operand::constant
+			&& y->getType() == SSA::Operand::constant)
 	{
-		SSA::Operand* operand = nullptr;
-		switch(opcode)
+		SSA::Operand *operand = nullptr;
+		switch (opcode)
 		{
 		case add:
 			operand = new SSA::ConstOperand(x->getConst() + y->getConst());
@@ -577,7 +579,7 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 	}
 
 	SSA::Opcode op;
-	switch(opcode)
+	switch (opcode)
 	{
 	case add:
 		op = SSA::add;
@@ -592,9 +594,9 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 		op = SSA::div;
 		break;
 	}
-	SSA::Instruction* ins = new SSA::Instruction(op, x, y);
+	SSA::Instruction *ins = new SSA::Instruction(op, x, y);
 
-	SSA::Instruction* cse = cseCheck(ins);
+	SSA::Instruction *cse = cseCheck(ins);
 	if (cse != ins)
 	{
 		return new SSA::ValOperand(cse);
@@ -611,28 +613,28 @@ SSA::Operand* Parser::compute(Opcode opcode, SSA::Operand* x, SSA::Operand* y)
 	return new SSA::ValOperand(ins);
 }
 
-void Parser::mustParse(LexAnalysis::Token tk) {
+void Parser::mustParse(LexAnalysis::Token tk)
+{
 	if (scan.tk == tk)
 	{
 		scan.next();
-	}
-	else
+	} else
 	{
-		std::cerr << scan.fname << ":" << scan.linenum <<
-				": expected token '" << LexAnalysis::tkToStr(tk)
-				<< "' but found token '" << LexAnalysis::tkToStr(scan.tk) << std::endl;
+		std::cerr << scan.fname << ":" << scan.linenum << ": expected token '"
+				<< LexAnalysis::tkToStr(tk) << "' but found token '"
+				<< LexAnalysis::tkToStr(scan.tk) << std::endl;
 		exit(1);
 	}
 }
 
 void Parser::err()
 {
-	std::cerr << scan.fname << ":" << scan.linenum <<
-			": unexpected token '" << LexAnalysis::tkToStr(scan.tk) << "' in " << std::endl;
+	std::cerr << scan.fname << ":" << scan.linenum << ": unexpected token '"
+			<< LexAnalysis::tkToStr(scan.tk) << "' in " << std::endl;
 	exit(1);
 }
 
-void Parser::linkBB(SSA::BasicBlock* pred, SSA::BasicBlock* succ)
+void Parser::linkBB(SSA::BasicBlock *pred, SSA::BasicBlock *succ)
 {
 	pred->addSuccessor(succ);
 	succ->addPredecessor(pred);
@@ -664,12 +666,11 @@ SSA::Operand* Parser::getVarValue(std::string id, bool fromExpression)
 	{
 		if (map.find(id) != map.end())
 		{
-			SSA::Operand* varValue = map[id];
+			SSA::Operand *varValue = map[id];
 			if (varValue)
 			{
 				return varValue;
-			}
-			else
+			} else
 			{
 				std::cerr << scan.fname << ":" << scan.linenum
 						<< ": undefined variable " << id << std::endl;
@@ -677,14 +678,15 @@ SSA::Operand* Parser::getVarValue(std::string id, bool fromExpression)
 			}
 		}
 	}
-	std::cerr << scan.fname << ":" << scan.linenum
-						<< ": undeclared variable " << id << std::endl;
-				exit(1);
+	std::cerr << scan.fname << ":" << scan.linenum << ": undeclared variable "
+			<< id << std::endl;
+	exit(1);
 }
 
 void Parser::pushUseChain()
 {
-	useChain.push_front(std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>());
+	useChain.push_front(
+			std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>());
 }
 
 void Parser::popUseChain()
@@ -699,9 +701,9 @@ void Parser::popUseChain()
  * assumes use chain stack is not empty
  * TODO: I think we should only be updating the front of the use chain, create a testcase for this
  */
-void Parser::insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins)
+void Parser::insertIntoUseChain(SSA::Operand *operand, SSA::Instruction *ins)
 {
-	for (std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>>& useChainLevel : useChain)
+	for (std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>> &useChainLevel : useChain)
 	{
 		if (operand)
 		{
@@ -714,15 +716,14 @@ void Parser::insertIntoUseChain(SSA::Operand* operand, SSA::Instruction* ins)
 	}
 }
 
-void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* newOperand,
-		SSA::Instruction* ins, bool left)
+void Parser::replaceOldOperandWithPhi(SSA::Operand *oldOperand,
+		SSA::Operand *newOperand, SSA::Instruction *ins, bool left)
 {
-	SSA::Operand* currOperand = nullptr;
+	SSA::Operand *currOperand = nullptr;
 	if (left)
 	{
 		currOperand = ins->getOperand1();
-	}
-	else
+	} else
 	{
 		currOperand = ins->getOperand2();
 	}
@@ -736,8 +737,7 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 				if (left)
 				{
 					ins->setOperand1(newOperand);
-				}
-				else
+				} else
 				{
 					ins->setOperand2(newOperand);
 				}
@@ -746,7 +746,7 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 		case SSA::Operand::call:
 		case SSA::Operand::phi:
 			std::list<SSA::Operand*> args = currOperand->getArgs();
-			for (SSA::Operand*& arg : args)
+			for (SSA::Operand *&arg : args)
 			{
 				if (arg == oldOperand)
 				{
@@ -758,16 +758,16 @@ void Parser::replaceOldOperandWithPhi(SSA::Operand* oldOperand, SSA::Operand* ne
 	}
 }
 
-void Parser::insertPhis(SSA::BasicBlock* from, SSA::BasicBlock* to)
+void Parser::insertPhis(SSA::BasicBlock *from, SSA::BasicBlock *to)
 {
 	for (std::pair<std::string, SSA::Operand*> pair : varMapStack.front())
 	{
 		std::string varName = pair.first;
-		SSA::Operand* operand = pair.second;
+		SSA::Operand *operand = pair.second;
 		bool foundPhi = false;
-		for (SSA::Instruction* ins : to->getInstructions())
+		for (SSA::Instruction *ins : to->getInstructions())
 		{
-			SSA::Operand* phi = ins->getOperand1();
+			SSA::Operand *phi = ins->getOperand1();
 			if (ins->getOpcode() == SSA::phi && pair.first == phi->getVarName())
 			{
 				phi->addPhiArg(from, operand);
@@ -777,25 +777,26 @@ void Parser::insertPhis(SSA::BasicBlock* from, SSA::BasicBlock* to)
 		}
 		if (!foundPhi)
 		{
-			SSA::PhiOperand* phi = new SSA::PhiOperand(varName, from, operand);
+			SSA::PhiOperand *phi = new SSA::PhiOperand(varName, from, operand);
 			to->emitFront(new SSA::Instruction(SSA::phi, phi));
 		}
 	}
 }
 
-void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
+void Parser::commitPhis(SSA::BasicBlock *b, bool loop)
 {
-	for (SSA::Instruction* ins : b->getInstructions())
+	for (SSA::Instruction *ins : b->getInstructions())
 	{
 		if (ins->getOpcode() == SSA::phi)
 		{
-			SSA::Operand* phiOp = ins->getOperand1();
-			std::map<SSA::BasicBlock*, SSA::Operand*> phiArgs = phiOp->getPhiArgs();
+			SSA::Operand *phiOp = ins->getOperand1();
+			std::map<SSA::BasicBlock*, SSA::Operand*> phiArgs =
+					phiOp->getPhiArgs();
 			std::string varName = phiOp->getVarName();
-			SSA::Operand* prevValue = getVarValue(varName, false);
+			SSA::Operand *prevValue = getVarValue(varName, false);
 
 			// set phi operands to the previous value if not set
-			for (SSA::BasicBlock* pred : b->getPredecessors())
+			for (SSA::BasicBlock *pred : b->getPredecessors())
 			{
 				if (phiArgs.find(pred) == phiArgs.cend())
 				{
@@ -803,21 +804,24 @@ void Parser::commitPhis(SSA::BasicBlock* b, bool loop)
 				}
 			}
 
-			SSA::ValOperand* newOperand= new SSA::ValOperand(ins);
+			SSA::ValOperand *newOperand = new SSA::ValOperand(ins);
 
 			// propagate phi values
 			if (loop && !useChain.empty())
 			{
-				for (std::unordered_map<SSA::Operand*, std::list<SSA::Instruction*>> useChainLevel : useChain)
+				for (std::unordered_map<SSA::Operand*,
+						std::list<SSA::Instruction*>> useChainLevel : useChain)
 				{
 					for (std::pair<SSA::Operand*, std::list<SSA::Instruction*>> usePair : useChainLevel)
 					{
 						if (prevValue == usePair.first)
 						{
-							for (SSA::Instruction* i: usePair.second)
+							for (SSA::Instruction *i : usePair.second)
 							{
-								replaceOldOperandWithPhi(prevValue, newOperand, i, true);
-								replaceOldOperandWithPhi(prevValue, newOperand, i, false);
+								replaceOldOperandWithPhi(prevValue, newOperand,
+										i, true);
+								replaceOldOperandWithPhi(prevValue, newOperand,
+										i, false);
 							}
 						}
 					}
@@ -846,7 +850,7 @@ void Parser::popCSEmap()
 	cseStack.pop_front();
 }
 
-SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
+SSA::Instruction* Parser::cseCheck(SSA::Instruction *ins)
 {
 	SSA::Opcode op = ins->getOpcode();
 
@@ -855,7 +859,7 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
 	{
 		if (map.find(op) != map.cend())
 		{
-			for (SSA::Instruction* cseIns : map[op])
+			for (SSA::Instruction *cseIns : map[op])
 			{
 				if (ins->equals(cseIns))
 				{
@@ -867,7 +871,8 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
 	}
 
 	// insert the new instruction into the CSE stack and return it
-	std::map<SSA::Opcode, std::list<SSA::Instruction*>>& front = cseStack.front();
+	std::map<SSA::Opcode, std::list<SSA::Instruction*>> &front =
+			cseStack.front();
 	if (front.find(op) == front.cend())
 	{
 		front[op] = std::list<SSA::Instruction*>();
@@ -878,13 +883,13 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction* ins)
 
 void Parser::emitFunc()
 {
-	if(func)
+	if (func)
 	{
-		IR.emit(func);
+		module->emit(func);
 	}
 }
 
-void Parser::emitBB(SSA::BasicBlock* bb)
+void Parser::emitBB(SSA::BasicBlock *bb)
 {
 	if (func && bb)
 	{
@@ -892,7 +897,7 @@ void Parser::emitBB(SSA::BasicBlock* bb)
 	}
 }
 
-void Parser::emit(SSA::BasicBlock* bb, SSA::Instruction* ins)
+void Parser::emit(SSA::BasicBlock *bb, SSA::Instruction *ins)
 {
 	if (bb && ins)
 	{

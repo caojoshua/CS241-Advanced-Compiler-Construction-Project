@@ -18,10 +18,10 @@ int main(int argc, char* argv[])
 		currFileName = std::string(argv[i]);
 
 		Parser parser(argv[i]);
-		SSA::IntermediateRepresentation ssa = parser.parse();
-		GraphML::SSAtoGraphML(ssa, "SSA_first_pass/");
+		SSA::Module* ssa = parser.parse();
+		GraphML::SSAtoGraphML(*ssa, "SSA_first_pass/");
 		allocateRegisters(ssa);
-		GraphML::SSAtoGraphML(ssa, "SSA_reg_alloc/");
+		GraphML::SSAtoGraphML(*ssa, "SSA_reg_alloc/");
 	}	
 
 	return 0;

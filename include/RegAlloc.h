@@ -11,9 +11,9 @@
 #include <iostream>
 
 void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o);
-void insertMoveBeforePhi(SSA::Func* f);
+void insertMoveBeforePhi(SSA::Function* f);
 
-void allocateRegisters(SSA::Func* f);
-void allocateRegisters(SSA::IntermediateRepresentation& ir);
+void allocateRegisters(SSA::Function* f);
+void allocateRegisters(SSA::Module* ir);
 
 #endif

@@ -50,8 +50,8 @@ private:
 	std::unordered_map<std::string, Array> arrayMap;
 
 	// global variables to keep track of where to emit
-	SSA::IntermediateRepresentation IR;
-	SSA::Func* func;
+	SSA::Module* module;
+	SSA::Function* func;
 	SSA::BasicBlock* currBB;
 	SSA::BasicBlock* joinBB;
 
@@ -118,5 +118,5 @@ private:
 	void emit(SSA::BasicBlock* bb, SSA::Instruction* ins);
 public:
 	Parser(char const* s);
-	SSA::IntermediateRepresentation& parse();
+	SSA::Module* parse();
 };

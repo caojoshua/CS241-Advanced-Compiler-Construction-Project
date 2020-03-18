@@ -73,14 +73,14 @@ namespace GraphML
 
 	void writeSSAEdge(std::ofstream& f, std::map<SSA::BasicBlock*, std::string>& BBtoNodeId,
 					SSA::BasicBlock* from, SSA::BasicBlock* to, int& edgeId);
-	void writeSSAFunc(std::ofstream&, SSA::Func* func);
+	void writeSSAFunc(std::ofstream&, SSA::Function* func);
 
 	/**
 	 * @param ssa SSA IR to be outputted
 	 * @param s write output to graphml/{s}
 	 * output SSA IR in GraphML format, viewable in yEd GUI: https://www.yworks.com/products/yed
 	 */
-	void SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* subdir);
+	void SSAtoGraphML(SSA::Module ssa, char const* subdir);
 
 	void InterferenceGraphToGraphML(InterferenceGraph graph, char const* subdir, char const* footer = "");
 

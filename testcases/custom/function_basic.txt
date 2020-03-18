@@ -1,0 +1,16 @@
+main
+var a, b, c;
+function foo(x);
+{
+   call OutputNum(x)
+};
+
+function bar(x);
+{
+	return x * 2
+};
+
+{
+	let a <- call bar(a);
+	call foo(a)
+}.

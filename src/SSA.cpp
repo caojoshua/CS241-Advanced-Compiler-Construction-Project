@@ -101,16 +101,15 @@ bool SSA::ValOperand::containsArg(Operand* o)
 	return equals(o);
 }
 
-SSA::CallOperand::CallOperand(std::string funcName, std::list<Operand*> args)
+SSA::CallOperand::CallOperand(Function* function, std::list<Operand*> args) : functionCall(new FunctionCall())
 {
-	f = new FunctionCall();
-	f->funcName = funcName;
-	f->args = args;
+	functionCall->function = function;
+	functionCall->args = args;
 }
 
 SSA::Operand* SSA::CallOperand::clone()
 {
-	return new CallOperand(f);
+	return new CallOperand(functionCall);
 }
 
 SSA::Operand::Type SSA::CallOperand::getType()
@@ -118,19 +117,24 @@ SSA::Operand::Type SSA::CallOperand::getType()
 	return call;
 }
 
+SSA::Operand::FunctionCall* SSA::CallOperand::getFunctionCall() const
+{
+	return functionCall;
+}
+
 std::string SSA::CallOperand::getFuncName() const
 {
-	return f->funcName;
+	return functionCall->function->getName();
 }
 
 std::list<SSA::Operand*> SSA::CallOperand::getArgs() const
 {
-	return f->args;
+	return functionCall->args;
 }
 
 void SSA::CallOperand::replaceArg(Operand* oldOp, Operand* newOp)
 {
-	for (SSA::Operand*& o : f->args)
+	for (SSA::Operand*& o : functionCall->args)
 	{
 		if (o->equals(oldOp))
 		{
@@ -141,7 +145,7 @@ void SSA::CallOperand::replaceArg(Operand* oldOp, Operand* newOp)
 
 bool SSA::CallOperand::containsArg(Operand* o)
 {
-	for (Operand* arg : f->args)
+	for (Operand* arg : functionCall->args)
 	{
 		if (arg->equals(o))
 		{
@@ -276,9 +280,9 @@ uint SSA::Instruction::getId() const
 	return id;
 }
 
-SSA::BasicBlock* SSA::Instruction::getParentBB() const
+SSA::BasicBlock* SSA::Instruction::getParent() const
 {
-	return parentBB;
+	return parent;
 }
 
 int SSA::Instruction::getReg() const
@@ -302,7 +306,11 @@ bool SSA::Instruction::hasOutput() const
 	case write:
 	case writeNL:
 		return false;
-	// TODO: handle whether there is return for call
+	case call:
+		if (x->getType() == Operand::call)
+		{
+			return !x->getFunctionCall()->function->isVoid();
+		}
 	}
 	return true;
 }
@@ -312,9 +320,9 @@ void SSA::Instruction::setId(uint id)
 	this->id = id;
 }
 
-void SSA::Instruction::setParentBB(BasicBlock* b)
+void SSA::Instruction::setParent(BasicBlock* b)
 {
-	parentBB = b;
+	parent = b;
 }
 
 void SSA::Instruction::setReg(int reg)
@@ -349,12 +357,12 @@ void SSA::Instruction::setOperand2(Operand* o)
 
 void SSA::Instruction::insertBefore(Instruction* other)
 {
-	parentBB->emitBefore(other, this);
+	parent->emitBefore(other, this);
 }
 
 void SSA::Instruction::insertAfter(Instruction* other)
 {
-	parentBB->emitAfter(other, this);
+	parent->emitAfter(other, this);
 }
 
 void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp)
@@ -400,19 +408,19 @@ SSA::BasicBlock::~BasicBlock()
 	}
 }
 
-SSA::Func* SSA::BasicBlock::getParentFunction() const
+SSA::Function* SSA::BasicBlock::getParent() const
 {
-	return parentFunction;
+	return parent;
 }
 
-void SSA::BasicBlock::setParentFunction(Func* f)
+void SSA::BasicBlock::setParent(Function* f)
 {
-	parentFunction = f;
+	parent = f;
 }
 
 void SSA::BasicBlock::emit(Instruction *ins)
 {
-	ins->setParentBB(this);
+	ins->setParent(this);
 	instructions.push_back(ins);
 }
 
@@ -431,7 +439,7 @@ void SSA::BasicBlock::emit(std::list<Instruction*> ins)
 
 void SSA::BasicBlock::emitFront(Instruction *ins)
 {
-	ins->setParentBB(this);
+	ins->setParent(this);
 	instructions.push_front(ins);
 }
 
@@ -440,7 +448,7 @@ void SSA::BasicBlock::emitBefore(Instruction* x, Instruction* y)
 	auto iter = getInstructionIter(y);
 	if (iter != instructions.end())
 	{
-		x->setParentBB(this);
+		x->setParent(this);
 		instructions.insert(iter, x);
 	}
 }
@@ -450,7 +458,7 @@ void SSA::BasicBlock::emitAfter(Instruction* x, Instruction* y)
 	auto iter = getInstructionIter(y);
 	if (iter != instructions.end())
 	{
-		x->setParentBB(this);
+		x->setParent(this);
 		instructions.insert(++iter, x);
 	}
 }
@@ -485,7 +493,7 @@ bool SSA::BasicBlock::isLoopHeader() const
 	return loopHeader;
 }
 
-SSA::Func::~Func()
+SSA::Function::~Function()
 {
 	for (BasicBlock* bb : BBs)
 	{
@@ -493,33 +501,43 @@ SSA::Func::~Func()
 	}
 }
 
-void SSA::Func::emit(BasicBlock *bb)
+void SSA::Function::emit(BasicBlock *bb)
 {
-	bb->setParentFunction(this);
+	bb->setParent(this);
 	BBs.push_back(bb);
 }
 
-std::string SSA::Func::getName()
+std::string SSA::Function::getName()
 {
 	return name;
 }
 
-std::list<SSA::BasicBlock*> SSA::Func::getBBs()
+bool SSA::Function::isVoid() const
+{
+	return isVoidReturn;
+}
+
+std::list<SSA::BasicBlock*> SSA::Function::getBBs()
 {
 	return BBs;
 }
 
-int SSA::Func::getLocalVariableOffset() const
+int SSA::Function::getLocalVariableOffset() const
 {
 	return localVariableOffset;
 }
 
-void SSA::Func::setLocalVariableOffset(int i)
+void SSA::Function::setIsVoid(bool isVoid)
+{
+	isVoidReturn = isVoid;
+}
+
+void SSA::Function::setLocalVariableOffset(int i)
 {
 	localVariableOffset = i;
 }
 
-int SSA::Func::resetLineIds()
+int SSA::Function::resetLineIds()
 {
 	uint lineId = 0;
 	for (BasicBlock* b : BBs)
@@ -532,32 +550,28 @@ int SSA::Func::resetLineIds()
 	return lineId;
 }
 
-SSA::IntermediateRepresentation::~IntermediateRepresentation()
+SSA::Module::Module()
 {
-	for (Func* f : funcs)
+	funcs.push_back(new Function(this, "InputNum", false));
+	funcs.push_back(new Function(this, "OutputNum", true));
+}
+
+SSA::Module::~Module()
+{
+	for (Function* f : funcs)
 	{
 		//delete f;
 	}
 }
 
-void SSA::IntermediateRepresentation::emitMain(Func* f)
-{
-	mainFunc = f;
-}
-
-void SSA::IntermediateRepresentation::emit(Func* f)
+void SSA::Module::emit(Function* f)
 {
 	funcs.push_back(f);
 }
 
-SSA::Func* const SSA::IntermediateRepresentation::getMain()
+SSA::Function* SSA::Module::getFunction(std::string name) const
 {
-	return mainFunc;
-}
-
-SSA::Func* const SSA::IntermediateRepresentation::getFunc(std::string name)
-{
-	for (Func* f : funcs)
+	for (Function* f : funcs)
 	{
 		if (f->getName() == name)
 		{
@@ -567,7 +581,7 @@ SSA::Func* const SSA::IntermediateRepresentation::getFunc(std::string name)
 	return nullptr;
 }
 
-std::list<SSA::Func*>& SSA::IntermediateRepresentation::getFuncs()
+std::list<SSA::Function*>& SSA::Module::getFuncs()
 {
 	return funcs;
 }
@@ -598,6 +612,7 @@ std::string SSA::opToStr(Opcode op)
 	case write:		return "write";
 	case writeNL:	return "writeNL";
 	case call:		return "call";
+	case ret:		return "ret";
 	}
 	return "";
 }
@@ -609,8 +624,8 @@ std::string SSA::ValOperand::toStr()
 
 std::string SSA::CallOperand::toStr()
 {
-	std::string s = f->funcName + "(";
-	for (Operand* o : f->args)
+	std::string s = functionCall->function->getName() + "(";
+	for (Operand* o : functionCall->args)
 	{
 		s += o->toStr() + ' ';
 	}

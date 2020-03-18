@@ -37,7 +37,7 @@ void GraphML::writeSSAEdge(std::ofstream& f, std::map<SSA::BasicBlock*, std::str
 	}
 }
 
-void GraphML::writeSSAFunc(std::ofstream& f, SSA::Func* func)
+void GraphML::writeSSAFunc(std::ofstream& f, SSA::Function* func)
 {
 	std::string funcName = func->getName();
 	std::map<SSA::BasicBlock*, std::string> BBtoNodeId;
@@ -71,16 +71,18 @@ void GraphML::writeSSAFunc(std::ofstream& f, SSA::Func* func)
 	f << GRAPH_FOOTER;
 }
 
-void GraphML::SSAtoGraphML(SSA::IntermediateRepresentation ssa, char const* subdir)
+void GraphML::SSAtoGraphML(SSA::Module ssa, char const* subdir)
 {
 	std::ofstream f = getFile(subdir);
 	if (f)
 	{
 		f << HEADER;
-		writeSSAFunc(f, ssa.getMain());
-		for (SSA::Func* func : ssa.getFuncs())
+		for (SSA::Function* func : ssa.getFuncs())
 		{
-			writeSSAFunc(f, func);
+			if (func->getName() != "InputNum" && func->getName() != "OutputNum")
+			{
+				writeSSAFunc(f, func);
+			}
 		}
 		f << FOOTER;
 		f.close();

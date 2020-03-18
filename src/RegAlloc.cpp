@@ -26,7 +26,7 @@ void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
 	}
 }
 
-void insertMoveBeforePhi(SSA::Func* f)
+void insertMoveBeforePhi(SSA::Function* f)
 {
 	for (SSA::BasicBlock* b : f->getBBs())
 	{
@@ -63,7 +63,7 @@ void insertMoveBeforePhi(SSA::Func* f)
  * Question: don't we need to include phis in liveset in loop headers
  * to propage its liveness throughout loop?
  */
-void allocateRegisters(SSA::Func* f)
+void allocateRegisters(SSA::Function* f)
 {
 	IntervalList intervals(f);
 	std::map<SSA::BasicBlock*, std::list<SSA::Instruction*>> liveIn;
@@ -174,11 +174,9 @@ void allocateRegisters(SSA::Func* f)
 	igraph.colorGraph(NUM_REG);
 }
 
-void allocateRegisters(SSA::IntermediateRepresentation& ir)
+void allocateRegisters(SSA::Module* ir)
 {
-	allocateRegisters(ir.getMain());
-	insertMoveBeforePhi(ir.getMain());
-	for (SSA::Func* f : ir.getFuncs())
+	for (SSA::Function* f : ir->getFuncs())
 	{
 		allocateRegisters(f);
 		insertMoveBeforePhi(f);

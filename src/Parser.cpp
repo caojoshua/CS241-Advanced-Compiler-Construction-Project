@@ -378,8 +378,16 @@ SSA::Operand* Parser::callStatement()
 		}
 		mustParse(LexAnalysis::close_paren);
 	}
-	SSA::CallOperand *callOp = new SSA::CallOperand(
-			module->getFunction(funcName), args);
+
+	SSA::Function* f = module->getFunction(funcName);
+	if (!f)
+	{
+		std::cerr << scan.fname << ":" << scan.linenum << ": undeclared function '"
+					<< funcName << "'" << std::endl;
+		exit(1);
+	}
+
+	SSA::CallOperand *callOp = new SSA::CallOperand(f, args);
 	SSA::Instruction *ins = new SSA::Instruction(SSA::call, callOp);
 
 	if (!useChain.empty())
@@ -630,7 +638,7 @@ void Parser::mustParse(LexAnalysis::Token tk)
 void Parser::err()
 {
 	std::cerr << scan.fname << ":" << scan.linenum << ": unexpected token '"
-			<< LexAnalysis::tkToStr(scan.tk) << "' in " << std::endl;
+			<< LexAnalysis::tkToStr(scan.tk) << "'" << std::endl;
 	exit(1);
 }
 

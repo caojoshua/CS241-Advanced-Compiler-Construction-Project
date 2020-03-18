@@ -18,16 +18,14 @@ SSA::Module* Parser::parse()
 {
 	SSA::Instruction::resetId();
 	Array::resetTotalOffset();
-	SSA::Function* mainFunc = new SSA::Function(module, "main");
-	func = mainFunc;
+	func = new SSA::Function(module, "main");
 	mustParse(LexAnalysis::main);
-	declarationList();
 	currBB = new SSA::BasicBlock();
-	func = mainFunc;
+	declarationList();
 	functionBody();
 	mustParse(LexAnalysis::period);
 	emitBB(currBB);
-	module->emit(mainFunc);
+	module->emit(func);
 	return module;
 }
 
@@ -72,6 +70,8 @@ std::vector<int> Parser::Array::getDims() const
 void Parser::function()
 {
 	mustParse(LexAnalysis::func);
+	SSA::Function* oldFunc = func;
+	SSA::BasicBlock* oldCurrBB = currBB;
 	func = new SSA::Function(module, scan.id);
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
@@ -100,6 +100,8 @@ void Parser::function()
 	functionBody();
 	emitBB(currBB);
 	emitFunc();
+	currBB = oldCurrBB;
+	func = oldFunc;
 	mustParse(LexAnalysis::semicolon);
 }
 
@@ -133,12 +135,16 @@ void Parser::varDeclaration()
 
 void Parser::varDeclareList()
 {
-	assignVarValue(scan.id, new SSA::ConstOperand(0));
+	SSA::Instruction* i = new SSA::Instruction(SSA::constant, new SSA::ConstOperand(0));
+	emit(currBB, i);
+	assignVarValue(scan.id, new SSA::ValOperand(i));
 	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
-		assignVarValue(scan.id, new SSA::ConstOperand(0));
+		SSA::Instruction* i = new SSA::Instruction(SSA::constant, new SSA::ConstOperand(0));
+		emit(currBB, i);
+		assignVarValue(scan.id, new SSA::ValOperand(i));
 		mustParse(LexAnalysis::id_tk);
 	}
 }
@@ -430,6 +436,12 @@ void Parser::assignment()
 	{
 		mustParse(LexAnalysis::assign);
 		SSA::Operand *op = expression();
+		if (op->getType() == SSA::Operand::constant)
+		{
+			SSA::Instruction* i = new SSA::Instruction(SSA::constant, op);
+			emit(currBB, i);
+			op = new SSA::ValOperand(i);
+		}
 		assignVarValue(varName, op);
 	}
 }

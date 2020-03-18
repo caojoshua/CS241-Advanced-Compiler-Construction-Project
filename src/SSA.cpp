@@ -70,7 +70,7 @@ std::map<SSA::BasicBlock*, SSA::Operand*> SSA::Operand::getPhiArgs() const
 
 int SSA::Operand::getConst()
 {
-	return -1;
+	return 0;
 }
 
 SSA::Operand* SSA::ValOperand::clone()
@@ -626,6 +626,7 @@ std::string SSA::opToStr(Opcode op)
 	case call:		return "call";
 	case ret:		return "ret";
 	case pop:		return "pop";
+	case constant:	return "constant";
 	}
 	return "";
 }

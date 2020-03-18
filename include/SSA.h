@@ -15,7 +15,8 @@ namespace SSA
 {
 
 	enum Opcode {add, sub, mul, div, cmp, adda, load, store, move, phi, end,
-		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call, ret, pop};
+		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call, ret,
+		pop, constant};
 
 	// forward declarations
 	class Instruction;

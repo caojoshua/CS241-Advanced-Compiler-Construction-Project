@@ -1,0 +1,9 @@
+main
+var a;
+{
+	while a < 100 do
+		let a <- a + 1;
+		call OutputNum(a)
+	od;
+	call OutputNum(a)
+}.

@@ -15,7 +15,7 @@ namespace SSA
 {
 
 	enum Opcode {add, sub, mul, div, cmp, adda, load, store, move, phi, end,
-		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call, ret};
+		bra, bne, beq, ble, blt, bge, bgt, read, write, writeNL, call, ret, pop};
 
 	// forward declarations
 	class Instruction;
@@ -210,6 +210,7 @@ namespace SSA
 		void setIsVoid(bool isVoid);
 		void setLocalVariableOffset(int i);
 		int resetLineIds();
+		void resetRegs();
 	};
 
 	class Module

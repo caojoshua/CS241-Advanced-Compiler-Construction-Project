@@ -72,8 +72,8 @@ void allocateRegisters(SSA::Function* f)
 	// keep track of last lineIds to keep track of end of loop bodies
 	std::map<SSA::BasicBlock*, int> endLineIds;
 
-	// reset lineIds and retrieve the last lineId
 	uint lineId = f->resetLineIds();
+	f->resetRegs();
 
 	// iterate through basic blocks and instructions in reverse order
 	for (std::list<SSA::BasicBlock*>::reverse_iterator it = BBs.rbegin(); it != BBs.rend(); ++it)

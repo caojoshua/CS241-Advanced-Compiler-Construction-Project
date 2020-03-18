@@ -80,7 +80,18 @@ void Parser::function()
 		mustParse(LexAnalysis::open_paren);
 		if (scan.tk == LexAnalysis::id_tk)
 		{
-			varDeclareList();
+			mustParse(LexAnalysis::id_tk);
+			SSA::Instruction* pop = new SSA::Instruction(SSA::pop);
+			assignVarValue(scan.id, new SSA::ValOperand(pop));
+			emit(currBB, pop);
+			while (scan.tk == LexAnalysis::comma)
+			{
+				mustParse(LexAnalysis::comma);
+				SSA::Instruction* pop = new SSA::Instruction(SSA::pop);
+				assignVarValue(scan.id, new SSA::ValOperand(pop));
+				emit(currBB, pop);
+				mustParse(LexAnalysis::id_tk);
+			}
 		}
 		mustParse(LexAnalysis::close_paren);
 	}

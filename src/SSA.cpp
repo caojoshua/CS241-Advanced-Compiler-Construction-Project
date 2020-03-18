@@ -305,6 +305,7 @@ bool SSA::Instruction::hasOutput() const
 	case bgt:
 	case write:
 	case writeNL:
+	case ret:
 		return false;
 	case call:
 		if (x->getType() == Operand::call)
@@ -550,6 +551,17 @@ int SSA::Function::resetLineIds()
 	return lineId;
 }
 
+void SSA::Function::resetRegs()
+{
+	for (BasicBlock* b : BBs)
+	{
+		for (Instruction* i : b->getInstructions())
+		{
+			i->setReg(-1);
+		}
+	}
+}
+
 SSA::Module::Module()
 {
 	funcs.push_back(new Function(this, "InputNum", false));
@@ -613,6 +625,7 @@ std::string SSA::opToStr(Opcode op)
 	case writeNL:	return "writeNL";
 	case call:		return "call";
 	case ret:		return "ret";
+	case pop:		return "pop";
 	}
 	return "";
 }

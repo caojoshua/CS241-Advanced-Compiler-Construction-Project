@@ -5,12 +5,12 @@ function foo(x);
    call OutputNum(x)
 };
 
-function bar(x);
+function bar(x, y);
 {
-	return x * 2
+	return x * y
 };
 
 {
-	let a <- call bar(a);
+	let a <- call bar(a, 10);
 	call foo(a)
 }.

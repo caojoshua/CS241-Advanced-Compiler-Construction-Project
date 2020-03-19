@@ -532,8 +532,12 @@ SSA::Operand* Parser::lvalue()
 	{
 		SSA::Operand *memLoc = arrayIndexReference();
 		SSA::Instruction *ins = new SSA::Instruction(SSA::load, memLoc);
-		emit(currBB, ins);
-		return new SSA::ValOperand(ins);
+		SSA::Instruction* cse = cseCheck(ins);
+		if (cse == ins)
+		{
+			emit(currBB, ins);
+		}
+		return new SSA::ValOperand(cse);
 	} else
 	{
 		return getVarValue(name);

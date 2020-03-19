@@ -334,7 +334,7 @@ SSA::Instruction* SSA::Instruction::clone() const
 
 bool SSA::Instruction::equals(Instruction* other)
 {
-	return op == other->op && x->equals(other->x) && y->equals(other->y);
+	return op == other->op && (!x || x->equals(other->x)) && (!y || y->equals(other->y));
 }
 
 uint SSA::Instruction::getId() const

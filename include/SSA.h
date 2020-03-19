@@ -45,6 +45,8 @@ namespace SSA
 		virtual FunctionCall* getFunctionCall() const;
 		virtual int getConst();
 		virtual std::list<Operand*> getArgs() const;
+		// this is broken. it modifies the current operand, modifying everything
+		// that points to it.
 		virtual void replaceArg(SSA::Operand* oldOp, SSA::Operand* newOp) {}
 		virtual bool containsArg(SSA::Operand* o);
 
@@ -127,6 +129,7 @@ namespace SSA
 		Opcode op;
 		Operand* x;
 		Operand* y;
+		void replaceArg(Operand* oldOp, Operand* newOp, bool left);
 	public:
 	Instruction(Opcode op) : Instruction(op, nullptr, nullptr) {};
 		Instruction(Opcode op, Operand* x) : Instruction(op, x, nullptr) {};
@@ -205,6 +208,7 @@ namespace SSA
 		~Function();
 		void emit(BasicBlock* bb);
 		std::string getName();
+		Module* getParent() const;
 		bool isVoid() const;
 		std::list<BasicBlock*> getBBs();
 		int getLocalVariableOffset() const;

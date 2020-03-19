@@ -73,6 +73,7 @@ public:
 	void addRange(SSA::Instruction* i, int from, int to);
 	void addRange(SSA::Operand* o, int from, int to);
 	InterferenceGraph buildInterferenceGraph() const;
+	std::string toStr() const;
 };
 
 #endif /* INCLUDE_REGALLOCSTRUCTS_H_ */

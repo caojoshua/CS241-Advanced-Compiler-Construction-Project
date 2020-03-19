@@ -7,9 +7,9 @@ CC = g++
 CFLAGS = -I include/
 EXTRA_CFLAGS = 
 
-ALL_TESTCASES = $(wildcard testcases/*.txt)
 PUBLIC_TESTCASES = $(wildcard testcases/public/*.txt)
 CUSTOM_TESTCASES = $(wildcard testcases/custom/*.txt)
+ALL_TESTCASES = $(PUBLIC_TESTCASES) $(CUSTOM_TESTCASES)
 
 SRCS = $(wildcard src/*.cpp)
 DEPS = $(wildcard include/*.h)

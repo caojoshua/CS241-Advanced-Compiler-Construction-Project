@@ -167,16 +167,37 @@ void InterferenceGraph::colorGraph(int k)
 					SSA::ValOperand* val = new SSA::ValOperand(n.instruction);
 					// dont replace args in the newly inserted store
 					// can be better by iterating from the current instruction, but more work
+					// could also make sure i != just created store a few lines before
+					// if there are cases where other stores use i
 					if (i->containsArg(val) && i->getOpcode() != SSA::store)
 					{
 						SSA::Instruction* load = new SSA::Instruction(SSA::load, new SSA::ConstOperand(offset));
-						i->insertBefore(load);
+						// in the case of phi, loads need to go in previous basic block
+						if (i->getOpcode() == SSA::phi)
+						{
+							SSA::Operand* phiOp = i->getOperand1();
+							if (phiOp)
+							{
+								for (std::pair<SSA::BasicBlock*, SSA::Operand*> phiArg : phiOp->getPhiArgs())
+								{
+									if (phiArg.second->equals(val))
+									{
+										phiArg.first->emit(load);
+									}
+								}
+							}
+						}
+						else
+						{
+							i->insertBefore(load);
+						}
 						i->replaceArg(val, new SSA::ValOperand(load));
 					}
 				}
 			}
 			offset -= 4;
 		}
+//		printf("allocating regs\n");
 		spillSet.front().instruction->getParent()->getParent()->setLocalVariableOffset(offset);
 		allocateRegisters(f);
 	}
@@ -339,4 +360,20 @@ void IntervalList::setFrom(SSA::Instruction *i, int from)
 	{
 		intervals[i] = Interval(from, from);
 	}
+}
+
+std::string IntervalList::toStr() const
+{
+	std::string s = "Intervals for " + f->getName() + '\n';
+	for (std::pair<SSA::Instruction*, Interval> pair : intervals)
+	{
+		s += "\t{" + pair.first->toStr() + "} ";
+		for (std::pair<int, int> interval : pair.second.getRanges())
+		{
+			s += "(" + std::to_string(interval.first) + ", " +
+					std::to_string(interval.second) + ") ";
+		}
+		s += '\n';
+	}
+	return s;
 }

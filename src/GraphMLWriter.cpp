@@ -44,6 +44,7 @@ void GraphML::writeSSAFunc(std::ofstream& f, SSA::Function* func)
 	int bbId = 0;
 	std::string funcHeader = GRAPH_HEADER;
 	funcHeader.replace(funcHeader.find("{graph_id}"), 10, funcName);
+	funcHeader.replace(funcHeader.find("{graph_id}"), 10, funcName);
 	funcHeader.replace(funcHeader.find("{graph_type}"), 12, "directed");
 	f << funcHeader;
 	std::list<SSA::BasicBlock*> BBs = func->getBBs();
@@ -79,7 +80,9 @@ void GraphML::SSAtoGraphML(SSA::Module ssa, char const* subdir)
 		f << HEADER;
 		for (SSA::Function* func : ssa.getFuncs())
 		{
-			if (func->getName() != "InputNum" && func->getName() != "OutputNum")
+			if (func->getName() != "InputNum"
+					&& func->getName() != "OutputNum"
+					&& func->getName() != "OutputNewLine")
 			{
 				writeSSAFunc(f, func);
 			}

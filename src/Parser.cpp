@@ -73,6 +73,7 @@ void Parser::function()
 	SSA::Function* oldFunc = func;
 	SSA::BasicBlock* oldCurrBB = currBB;
 	func = new SSA::Function(module, scan.id);
+	emitFunc();
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
 	if (scan.tk == LexAnalysis::open_paren)
@@ -99,7 +100,6 @@ void Parser::function()
 	declarationList();
 	functionBody();
 	emitBB(currBB);
-	emitFunc();
 	currBB = oldCurrBB;
 	func = oldFunc;
 	mustParse(LexAnalysis::semicolon);

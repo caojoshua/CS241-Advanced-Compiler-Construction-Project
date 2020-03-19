@@ -37,7 +37,7 @@ namespace GraphML
 		"				<y:ProxyAutoBoundsNode>\n"
 		"					<y:Realizers active=\"0\">\n"
 		"						<y:GroupNode>\n"
-		"							<y:NodeLabel>main</y:NodeLabel>\n"
+		"							<y:NodeLabel>\"{graph_id}\"</y:NodeLabel>\n"
 		"						</y:GroupNode>\n"
 		"					</y:Realizers>\n"
 		"				</y:ProxyAutoBoundsNode>\n"

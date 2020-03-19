@@ -39,6 +39,7 @@ void insertMoveBeforePhi(SSA::Function* f)
 				{
 					for (auto pair : phi->getPhiArgs())
 					{
+						// TODO: shouldn't we do this for every type of operand?
 						switch (pair.second->getType())
 						{
 						case SSA::Operand::val:
@@ -72,8 +73,10 @@ void allocateRegisters(SSA::Function* f)
 	// keep track of last lineIds to keep track of end of loop bodies
 	std::map<SSA::BasicBlock*, int> endLineIds;
 
-	uint lineId = f->resetLineIds();
+	uint lineId = f->resetLineIds() - 1;
 	f->resetRegs();
+
+GraphML::SSAtoGraphML(*(f->getParent()), "bust/");
 
 	// iterate through basic blocks and instructions in reverse order
 	for (std::list<SSA::BasicBlock*>::reverse_iterator it = BBs.rbegin(); it != BBs.rend(); ++it)
@@ -128,7 +131,7 @@ void allocateRegisters(SSA::Function* f)
 			// ideally this would be dead-code eliminated
 			if (ins->hasOutput())
 			{
-				intervals.setFrom(ins, lineId);
+				intervals.setFrom(ins, lineId + 1);
 			}
 
 			if (ins->getOpcode() != SSA::phi)
@@ -136,8 +139,8 @@ void allocateRegisters(SSA::Function* f)
 				// input operand
 				SSA::Operand* op1 = ins->getOperand1();
 				SSA::Operand* op2 = ins->getOperand2();
-				intervals.addRange(op1, bFrom, lineId - 1);
-				intervals.addRange(op2, bFrom, lineId - 1);
+				intervals.addRange(op1, bFrom, lineId);
+				intervals.addRange(op2, bFrom, lineId);
 				addOperandToLive(live, op1);
 				addOperandToLive(live, op2);
 			}
@@ -166,6 +169,13 @@ void allocateRegisters(SSA::Function* f)
 			}
 		}
 		liveIn[b] = live;
+
+//		printf("live:\n");
+//		for (SSA::Instruction* i : live)
+//		{
+//			if (i)
+//				printf("\t%s\n", i->toStr().c_str());
+//		}
 	}
 
 	InterferenceGraph igraph = intervals.buildInterferenceGraph();

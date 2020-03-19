@@ -259,6 +259,68 @@ int SSA::ConstOperand::getConst()
 
 uint SSA::Instruction::idCount = 0;
 
+void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp, bool left)
+{
+
+//	switch (x->getType())
+//	{
+//	case SSA::Operand::val:
+//		if (x->equals(oldOp))
+//		{
+//			printf("nani\n");
+//			x = newOp;
+//		}
+//		break;
+//	case SSA::Operand::call:
+//	case SSA::Operand::phi:
+//		x->replaceArg(oldOp, newOp);
+//		break;
+//	}
+//
+//	switch (y->getType())
+//	{
+//	case SSA::Operand::val:
+//		if (y->equals(oldOp))
+//		{
+//			printf("nani\n");
+//			y = newOp;
+//		}
+//		break;
+//	case SSA::Operand::call:
+//	case SSA::Operand::phi:
+//		y->replaceArg(oldOp, newOp);
+//		break;
+//	}
+
+	Operand** opPtr;
+	if (left && x)
+	{
+		opPtr = &x;
+	}
+	else if (y)
+	{
+		opPtr = &y;
+	}
+	else
+	{
+		return;
+	}
+	Operand*& o = *opPtr;
+	switch (o->getType())
+	{
+	case SSA::Operand::val:
+		if (o->equals(oldOp))
+		{
+			o = newOp;
+		}
+		break;
+	case SSA::Operand::call:
+	case SSA::Operand::phi:
+		o->replaceArg(oldOp, newOp);
+		break;
+	}
+}
+
 SSA::Instruction::~Instruction()
 {
 //	delete x;
@@ -368,14 +430,8 @@ void SSA::Instruction::insertAfter(Instruction* other)
 
 void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp)
 {
-	if (x)
-	{
-		x->replaceArg(oldOp, newOp);
-	}
-	if (y)
-	{
-		y->replaceArg(oldOp, newOp);
-	}
+	replaceArg(oldOp, newOp, true);
+	replaceArg(oldOp, newOp, false);
 }
 
 bool SSA::Instruction::containsArg(Operand* o) const
@@ -513,6 +569,11 @@ std::string SSA::Function::getName()
 	return name;
 }
 
+SSA::Module* SSA::Function::getParent() const
+{
+	return parent;
+}
+
 bool SSA::Function::isVoid() const
 {
 	return isVoidReturn;
@@ -566,6 +627,7 @@ SSA::Module::Module()
 {
 	funcs.push_back(new Function(this, "InputNum", false));
 	funcs.push_back(new Function(this, "OutputNum", true));
+	funcs.push_back(new Function(this, "OutputNewLine", true));
 }
 
 SSA::Module::~Module()

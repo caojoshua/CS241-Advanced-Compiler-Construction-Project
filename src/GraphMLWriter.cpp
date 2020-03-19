@@ -72,13 +72,13 @@ void GraphML::writeSSAFunc(std::ofstream& f, SSA::Function* func)
 	f << GRAPH_FOOTER;
 }
 
-void GraphML::SSAtoGraphML(SSA::Module ssa, char const* subdir)
+void GraphML::SSAtoGraphML(SSA::Module* module, char const* subdir)
 {
 	std::ofstream f = getFile(subdir);
 	if (f)
 	{
 		f << HEADER;
-		for (SSA::Function* func : ssa.getFuncs())
+		for (SSA::Function* func : module->getFuncs())
 		{
 			if (func->getName() != "InputNum"
 					&& func->getName() != "OutputNum"

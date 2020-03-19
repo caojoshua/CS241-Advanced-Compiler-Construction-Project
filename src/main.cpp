@@ -19,9 +19,10 @@ int main(int argc, char* argv[])
 
 		Parser parser(argv[i]);
 		SSA::Module* ssa = parser.parse();
-		GraphML::SSAtoGraphML(*ssa, "SSA_first_pass/");
+		GraphML::SSAtoGraphML(ssa, "SSA_first_pass/");
 		allocateRegisters(ssa);
-		GraphML::SSAtoGraphML(*ssa, "SSA_reg_alloc/");
+		GraphML::SSAtoGraphML(ssa, "SSA_reg_alloc/");
+		delete ssa;
 	}	
 
 	return 0;

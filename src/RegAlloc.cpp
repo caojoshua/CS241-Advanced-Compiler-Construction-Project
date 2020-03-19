@@ -76,7 +76,7 @@ void allocateRegisters(SSA::Function* f)
 	uint lineId = f->resetLineIds() - 1;
 	f->resetRegs();
 
-GraphML::SSAtoGraphML(*(f->getParent()), "bust/");
+GraphML::SSAtoGraphML(f->getParent(), "bust/");
 
 	// iterate through basic blocks and instructions in reverse order
 	for (std::list<SSA::BasicBlock*>::reverse_iterator it = BBs.rbegin(); it != BBs.rend(); ++it)
@@ -178,6 +178,7 @@ GraphML::SSAtoGraphML(*(f->getParent()), "bust/");
 //		}
 	}
 
+//	printf("%s\n", intervals.toStr().c_str());
 	InterferenceGraph igraph = intervals.buildInterferenceGraph();
 	GraphML::InterferenceGraphToGraphML(igraph,
 			"interference_graph/", ("_" + f->getName()).c_str());

@@ -898,7 +898,7 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction *ins)
 			{
 				if (ins->equals(cseIns))
 				{
-					delete ins;
+//					delete ins;
 					return cseIns;
 				}
 			}

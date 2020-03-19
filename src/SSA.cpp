@@ -461,7 +461,10 @@ SSA::BasicBlock::~BasicBlock()
 {
 	for (Instruction* i : instructions)
 	{
-		// delete i;
+		if (i)
+		{
+			delete i;
+		}
 	}
 }
 
@@ -554,7 +557,7 @@ SSA::Function::~Function()
 {
 	for (BasicBlock* bb : BBs)
 	{
-//		delete bb;
+		delete bb;
 	}
 }
 
@@ -634,7 +637,7 @@ SSA::Module::~Module()
 {
 	for (Function* f : funcs)
 	{
-		//delete f;
+		delete f;
 	}
 }
 

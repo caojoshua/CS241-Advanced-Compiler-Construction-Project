@@ -4,7 +4,7 @@
 #
 
 CC = g++
-CFLAGS = -I include/
+CFLAGS = -I include/ -O0
 EXTRA_CFLAGS = 
 
 PUBLIC_TESTCASES = $(wildcard testcases/public/*.txt)

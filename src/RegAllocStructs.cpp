@@ -158,20 +158,25 @@ void InterferenceGraph::colorGraph(int k)
 		int offset = spillSet.front().instruction->getParent()->getParent()->getLocalVariableOffset();
 		for (Node n : spillSet)
 		{
-			n.instruction->insertAfter(new SSA::Instruction(SSA::store,
-					new SSA::ValOperand(n.instruction), new SSA::ConstOperand(offset)));
+			SSA::Instruction* addaStore = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand,
+					new SSA::ConstOperand(offset));
+			SSA::Instruction* store = new SSA::Instruction(SSA::store,
+					new SSA::ValOperand(n.instruction), new SSA::ValOperand(addaStore));
+			n.instruction->insertAfter(store);
+			n.instruction->insertAfter(addaStore);
 			for (SSA::BasicBlock* b : n.instruction->getParent()->getParent()->getBBs())
 			{
 				for (SSA::Instruction* i : b->getInstructions())
 				{
 					SSA::ValOperand* val = new SSA::ValOperand(n.instruction);
-					// dont replace args in the newly inserted store
+					// dont replace args in the newly inserted adda
 					// can be better by iterating from the current instruction, but more work
 					// could also make sure i != just created store a few lines before
 					// if there are cases where other stores use i
-					if (i->containsArg(val) && i->getOpcode() != SSA::store)
+					if (i->containsArg(val) && i->getOpcode() != SSA::adda && i->getOpcode() != SSA::store)
 					{
-						SSA::Instruction* load = new SSA::Instruction(SSA::load, new SSA::ConstOperand(offset));
+						SSA::Instruction* adda = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand(), new SSA::ConstOperand(offset));
+						SSA::Instruction* load = new SSA::Instruction(SSA::load, new SSA::ValOperand(adda));
 						// in the case of phi, loads need to go in previous basic block
 						if (i->getOpcode() == SSA::phi)
 						{
@@ -182,6 +187,7 @@ void InterferenceGraph::colorGraph(int k)
 								{
 									if (phiArg.second->equals(val))
 									{
+										phiArg.first->emit(adda);
 										phiArg.first->emit(load);
 									}
 								}
@@ -189,6 +195,7 @@ void InterferenceGraph::colorGraph(int k)
 						}
 						else
 						{
+							i->insertBefore(adda);
 							i->insertBefore(load);
 						}
 						i->replaceArg(val, new SSA::ValOperand(load));

@@ -30,6 +30,10 @@ bool SSA::Operand::equals(Operand* other)
 	{
 		return getConst() == other->getConst();
 	}
+	else if (getType() == stackPointer && other->getType() == stackPointer)
+	{
+		return true;
+	}
 	return false;
 }
 
@@ -255,6 +259,21 @@ SSA::Operand::Type SSA::ConstOperand::getType()
 int SSA::ConstOperand::getConst()
 {
 	return constVal;
+}
+
+SSA::Operand* SSA::StackPointerOperand::clone()
+{
+	return new StackPointerOperand;
+}
+
+SSA::Operand::Type SSA::StackPointerOperand::getType()
+{
+	return stackPointer;
+}
+
+std::string SSA::StackPointerOperand::toStr()
+{
+	return "SP";
 }
 
 uint SSA::Instruction::idCount = 0;

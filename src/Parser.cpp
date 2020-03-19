@@ -429,7 +429,15 @@ void Parser::assignment()
 	{
 		SSA::Operand *memLoc = arrayIndexReference();
 		mustParse(LexAnalysis::assign);
-		emit(currBB, new SSA::Instruction(SSA::store, expression(), memLoc));
+		SSA::Operand* exp = expression();
+		SSA::Instruction* adda = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand, exp);
+		SSA::Instruction* cse = cseCheck(adda);
+		if (adda == cse)
+		{
+			emit(currBB, adda);
+		}
+		adda = cse;
+		emit(currBB, new SSA::Instruction(SSA::store, new SSA::ValOperand(adda), memLoc));
 	}
 	// var assignment
 	else
@@ -531,7 +539,15 @@ SSA::Operand* Parser::lvalue()
 	if (scan.tk == LexAnalysis::open_bracket)
 	{
 		SSA::Operand *memLoc = arrayIndexReference();
-		SSA::Instruction *ins = new SSA::Instruction(SSA::load, memLoc);
+		SSA::Instruction* adda = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand(), memLoc);
+		SSA::Instruction* addaCse = cseCheck(adda);
+		if (adda == addaCse)
+		{
+			emit(currBB, adda);
+		}
+		adda = addaCse;
+
+		SSA::Instruction *ins = new SSA::Instruction(SSA::load, new SSA::ValOperand(adda));
 		SSA::Instruction* cse = cseCheck(ins);
 		if (cse == ins)
 		{

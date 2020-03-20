@@ -6,6 +6,8 @@
 #include <RegAlloc.h>
 #include "GraphMLWriter.h"
 
+int numIters = 0;
+
 void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o)
 {
 	if (o)
@@ -66,6 +68,16 @@ void insertMoveBeforePhi(SSA::Function* f)
  */
 void allocateRegisters(SSA::Function* f)
 {
+	// this is SUPER expensive but works as bandaid
+//	f->getParent()->cleanOperands();
+
+	printf("%d\n", numIters);
+//	if (numIters > 3)
+//	{
+//		return;
+//	}
+	++numIters;
+
 	IntervalList intervals(f);
 	std::map<SSA::BasicBlock*, std::list<SSA::Instruction*>> liveIn;
 	std::list<SSA::BasicBlock*> BBs = f->getBBs();
@@ -189,6 +201,7 @@ void allocateRegisters(SSA::Module* ir)
 {
 	for (SSA::Function* f : ir->getFuncs())
 	{
+		numIters = 0;
 		allocateRegisters(f);
 		insertMoveBeforePhi(f);
 	}

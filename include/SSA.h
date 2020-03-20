@@ -10,6 +10,7 @@
 #include <list>
 #include <iostream>
 #include <map>
+#include <unordered_set>
 
 namespace SSA
 {
@@ -77,6 +78,7 @@ namespace SSA
 	public:
 		CallOperand(FunctionCall* f) : functionCall(f) {}
 		CallOperand(Function* f, std::list<Operand*> args);
+		~CallOperand();
 		virtual Operand* clone();
 		Type getType();
 		FunctionCall* getFunctionCall() const;
@@ -209,6 +211,7 @@ namespace SSA
 		// optimally keep track of some sort of mapping for better optimizations
 		int localVariableOffset;
 		Module* parent;
+		std::unordered_set<SSA::Operand*> ops;
 	public:
 		Function(Module* module, std::string name)
 			: name(name), isVoidReturn(true), localVariableOffset(0), parent(module) {}
@@ -217,20 +220,22 @@ namespace SSA
 		~Function();
 		void emit(BasicBlock* bb);
 		std::string getName();
+		std::list<BasicBlock*> getBBs();
 		Module* getParent() const;
 		bool isVoid() const;
-		std::list<BasicBlock*> getBBs();
 		int getLocalVariableOffset() const;
 		void setIsVoid(bool isVoid);
 		void setLocalVariableOffset(int i);
 		int resetLineIds();
 		void resetRegs();
+//		void addOperand(SSA::Operand* o);
 	};
 
 	class Module
 	{
 	private:
 		std::list<Function*> funcs;
+		std::unordered_set<SSA::Operand*> ops;
 	public:
 		Module();
 		~Module();
@@ -238,6 +243,10 @@ namespace SSA
 		Function* const getFunc(std::string name);
 		std::list<Function*>& getFuncs();
 		Function* getFunction(std::string name) const;
+		void addOperand(SSA::Operand* o);
+		// this is SUPER expensive but this whole compilers memory management sucks
+		// so this works as a bandaid by clearing out unused operands
+		void cleanOperands();
 	};
 
 	std::string opToStr(Opcode op);

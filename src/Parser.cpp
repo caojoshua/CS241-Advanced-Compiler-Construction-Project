@@ -21,10 +21,10 @@ SSA::Module* Parser::parse()
 	func = new SSA::Function(module, "main");
 	mustParse(LexAnalysis::main);
 	currBB = new SSA::BasicBlock();
+	emitBB(currBB);
 	declarationList();
 	functionBody();
 	mustParse(LexAnalysis::period);
-	emitBB(currBB);
 	module->emit(func);
 	return module;
 }
@@ -76,6 +76,7 @@ void Parser::function()
 	emitFunc();
 	mustParse(LexAnalysis::id_tk);
 	currBB = new SSA::BasicBlock();
+	emitBB(currBB);
 	if (scan.tk == LexAnalysis::open_paren)
 	{
 		mustParse(LexAnalysis::open_paren);
@@ -99,7 +100,6 @@ void Parser::function()
 	mustParse(LexAnalysis::semicolon);
 	declarationList();
 	functionBody();
-	emitBB(currBB);
 	currBB = oldCurrBB;
 	func = oldFunc;
 	mustParse(LexAnalysis::semicolon);
@@ -137,16 +137,18 @@ void Parser::varDeclareList()
 {
 	SSA::Instruction* i = new SSA::Instruction(SSA::constant, new SSA::ConstOperand(0));
 	emit(currBB, i);
-	assignVarValue(scan.id, new SSA::ValOperand(i));
+	SSA::Operand* val = new SSA::ValOperand(i);
+	assignVarValue(scan.id, val);
 	mustParse(LexAnalysis::id_tk);
 	while (scan.tk == LexAnalysis::comma)
 	{
 		mustParse(LexAnalysis::comma);
 		SSA::Instruction* i = new SSA::Instruction(SSA::constant, new SSA::ConstOperand(0));
 		emit(currBB, i);
-		assignVarValue(scan.id, new SSA::ValOperand(i));
+		assignVarValue(scan.id, val);
 		mustParse(LexAnalysis::id_tk);
 	}
+	delete val;
 }
 
 void Parser::arrayDeclartion()
@@ -223,17 +225,17 @@ void Parser::whileLoop()
 {
 	mustParse(LexAnalysis::while_tk);
 	SSA::BasicBlock *orig = currBB;
-	emitBB(orig);
 	currBB = new SSA::BasicBlock(true);
+	emitBB(currBB);
 	linkBB(orig, currBB);
 	joinBB = currBB;
 	SSA::BasicBlock *oldJoin = joinBB;
-	emitBB(joinBB);
 	pushUseChain();
 	conditional();
 
 	mustParse(LexAnalysis::do_tk);
 	currBB = new SSA::BasicBlock();
+	emitBB(currBB);
 	linkBB(joinBB, currBB);
 	pushVarMap();
 	pushCSEmap();
@@ -245,10 +247,10 @@ void Parser::whileLoop()
 	linkBB(currBB, joinBB);
 	mustParse(LexAnalysis::od);
 
-	emitBB(currBB);
 	commitPhis(joinBB, true);
 	popUseChain();
 	currBB = new SSA::BasicBlock();
+	emitBB(currBB);
 	linkBB(joinBB, currBB);
 }
 
@@ -265,10 +267,11 @@ void Parser::ifStatement()
 	conditional();
 	mustParse(LexAnalysis::then);
 
-	emitBB(currBB);
 	SSA::BasicBlock *origBB = currBB;
 	currBB = new SSA::BasicBlock();
+	emitBB(currBB);
 	joinBB = new SSA::BasicBlock();
+	joinBB->setParent(func);
 	SSA::BasicBlock *oldJoin = joinBB;
 	linkBB(origBB, currBB);
 
@@ -278,13 +281,13 @@ void Parser::ifStatement()
 	insertPhis(currBB, oldJoin);
 	popVarMap();
 	popCSEmap();
-	emitBB(currBB);
 	linkBB(currBB, oldJoin);
 
 	if (scan.tk == LexAnalysis::else_tk)
 	{
 		mustParse(LexAnalysis::else_tk);
 		currBB = new SSA::BasicBlock();
+		emitBB(currBB);
 		linkBB(origBB, currBB);
 		pushVarMap();
 		pushCSEmap();
@@ -292,7 +295,6 @@ void Parser::ifStatement()
 		insertPhis(currBB, oldJoin);
 		popVarMap();
 		popCSEmap();
-		emitBB(currBB);
 		joinBB = oldJoin;
 		linkBB(currBB, joinBB);
 	} else
@@ -302,6 +304,7 @@ void Parser::ifStatement()
 	}
 	currBB = joinBB;
 	commitPhis(joinBB);
+	emitBB(currBB);
 	mustParse(LexAnalysis::fi);
 }
 

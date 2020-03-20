@@ -25,6 +25,7 @@ public:
 		Node(SSA::Instruction* i);
 		Node(const Node& other);
 		Node(int id, SSA::Instruction* i);
+		~Node();
 		int id;
 		SSA::Instruction* instruction;
 		std::list<SSA::Instruction*> edges;

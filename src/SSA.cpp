@@ -111,6 +111,11 @@ SSA::CallOperand::CallOperand(Function* function, std::list<Operand*> args) : fu
 	functionCall->args = args;
 }
 
+SSA::CallOperand::~CallOperand()
+{
+	delete functionCall;
+}
+
 SSA::Operand* SSA::CallOperand::clone()
 {
 	return new CallOperand(functionCall);
@@ -241,7 +246,8 @@ std::string SSA::PhiOperand::toStr()
 	std::string s = "";
 	for (std::pair<BasicBlock*, Operand*> pair : args)
 	{
-		s += pair.second->toStr() + " ";
+		s += pair.second->toStr() +
+				", " + std::to_string(pair.first->getInstructions().size()) + " ";
 	}
 	return s + "";
 }
@@ -280,37 +286,6 @@ uint SSA::Instruction::idCount = 0;
 
 void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp, bool left)
 {
-
-//	switch (x->getType())
-//	{
-//	case SSA::Operand::val:
-//		if (x->equals(oldOp))
-//		{
-//			printf("nani\n");
-//			x = newOp;
-//		}
-//		break;
-//	case SSA::Operand::call:
-//	case SSA::Operand::phi:
-//		x->replaceArg(oldOp, newOp);
-//		break;
-//	}
-//
-//	switch (y->getType())
-//	{
-//	case SSA::Operand::val:
-//		if (y->equals(oldOp))
-//		{
-//			printf("nani\n");
-//			y = newOp;
-//		}
-//		break;
-//	case SSA::Operand::call:
-//	case SSA::Operand::phi:
-//		y->replaceArg(oldOp, newOp);
-//		break;
-//	}
-
 	Operand** opPtr;
 	if (left && x)
 	{
@@ -449,6 +424,10 @@ void SSA::Instruction::insertAfter(Instruction* other)
 
 void SSA::Instruction::replaceArg(Operand* oldOp, Operand* newOp)
 {
+//	if (containsArg(oldOp))
+//	{
+		parent->getParent()->getParent()->addOperand(oldOp);
+//	}
 	replaceArg(oldOp, newOp, true);
 	replaceArg(oldOp, newOp, false);
 }
@@ -501,6 +480,8 @@ void SSA::BasicBlock::emit(Instruction *ins)
 {
 	ins->setParent(this);
 	instructions.push_back(ins);
+	parent->getParent()->addOperand(ins->getOperand1());
+	parent->getParent()->addOperand(ins->getOperand2());
 }
 
 void SSA::BasicBlock::emit(SSA::ValOperand* op)
@@ -520,6 +501,8 @@ void SSA::BasicBlock::emitFront(Instruction *ins)
 {
 	ins->setParent(this);
 	instructions.push_front(ins);
+	parent->getParent()->addOperand(ins->getOperand1());
+	parent->getParent()->addOperand(ins->getOperand2());
 }
 
 void SSA::BasicBlock::emitBefore(Instruction* x, Instruction* y)
@@ -529,6 +512,8 @@ void SSA::BasicBlock::emitBefore(Instruction* x, Instruction* y)
 	{
 		x->setParent(this);
 		instructions.insert(iter, x);
+		parent->getParent()->addOperand(x->getOperand1());
+		parent->getParent()->addOperand(x->getOperand2());
 	}
 }
 
@@ -539,6 +524,8 @@ void SSA::BasicBlock::emitAfter(Instruction* x, Instruction* y)
 	{
 		x->setParent(this);
 		instructions.insert(++iter, x);
+		parent->getParent()->addOperand(x->getOperand1());
+		parent->getParent()->addOperand(x->getOperand2());
 	}
 }
 
@@ -578,6 +565,12 @@ SSA::Function::~Function()
 	{
 		delete bb;
 	}
+//	// temporary solution to delete operands, since freeing operands
+//	// from instructions cause double frees
+//	for (SSA::Operand* o : ops)
+//	{
+//		delete o;
+//	}
 }
 
 void SSA::Function::emit(BasicBlock *bb)
@@ -591,6 +584,11 @@ std::string SSA::Function::getName()
 	return name;
 }
 
+std::list<SSA::BasicBlock*> SSA::Function::getBBs()
+{
+	return BBs;
+}
+
 SSA::Module* SSA::Function::getParent() const
 {
 	return parent;
@@ -599,11 +597,6 @@ SSA::Module* SSA::Function::getParent() const
 bool SSA::Function::isVoid() const
 {
 	return isVoidReturn;
-}
-
-std::list<SSA::BasicBlock*> SSA::Function::getBBs()
-{
-	return BBs;
 }
 
 int SSA::Function::getLocalVariableOffset() const
@@ -645,6 +638,14 @@ void SSA::Function::resetRegs()
 	}
 }
 
+//void SSA::Function::addOperand(Operand* o)
+//{
+//	if (o)
+//	{
+//		ops.insert(o);
+//	}
+//}
+
 SSA::Module::Module()
 {
 	funcs.push_back(new Function(this, "InputNum", false));
@@ -657,6 +658,12 @@ SSA::Module::~Module()
 	for (Function* f : funcs)
 	{
 		delete f;
+	}
+	// temporary solution to delete operands, since freeing operands
+	// from instructions cause double frees
+	for (SSA::Operand* o : ops)
+	{
+		delete o;
 	}
 }
 
@@ -675,6 +682,80 @@ SSA::Function* SSA::Module::getFunction(std::string name) const
 		}
 	}
 	return nullptr;
+}
+
+void SSA::Module::addOperand(Operand* o)
+{
+	if (o)
+	{
+		ops.insert(o);
+	}
+}
+
+void SSA::Module::cleanOperands()
+{
+	std::unordered_set<SSA::Operand*> deleteOps;
+	for (SSA::Operand* o : ops)
+	{
+		bool found = false;
+		for (Function* f : funcs)
+		{
+			for (BasicBlock* b : f->getBBs())
+			{
+				for (SSA::Instruction* i : b->getInstructions())
+				{
+					bool inUse = false;
+					if (i->getOperand1())
+					{
+						if (i->getOperand1() == o)
+						{
+							inUse = true;
+						}
+						for (SSA::Operand* arg : i->getOperand1()->getArgs())
+						{
+							if (arg == o)
+							{
+								inUse = true;
+							}
+						}
+					}
+					if (i->getOperand2())
+					{
+						if (i->getOperand2() == o)
+						{
+							inUse = true;
+						}
+						for (SSA::Operand* arg : i->getOperand2()->getArgs())
+						{
+							if (arg == o)
+							{
+								inUse = true;
+							}
+						}
+					}
+
+					if (!inUse)
+					{
+//						printf("found: %s\n", o->toStr().c_str());
+						found = true;
+					}
+				}
+			}
+		}
+		if (!found)
+		{
+//			printf("%s\n", o->toStr().c_str());
+			deleteOps.insert(o);
+//			ops.erase(o);
+//			delete o;
+		}
+	}
+
+	for (SSA::Operand* o : deleteOps)
+	{
+		ops.erase(o);
+		delete(o);
+	}
 }
 
 std::list<SSA::Function*>& SSA::Module::getFuncs()

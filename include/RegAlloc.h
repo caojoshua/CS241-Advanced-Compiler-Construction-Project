@@ -10,6 +10,8 @@
 #include "SSA.h"
 #include <iostream>
 
+extern int numIters;
+
 void addOperandToLive(std::list<SSA::Instruction*>& live, SSA::Operand* o);
 void insertMoveBeforePhi(SSA::Function* f);
 

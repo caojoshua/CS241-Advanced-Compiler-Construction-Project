@@ -20,6 +20,10 @@ InterferenceGraph::Node::Node(int id, SSA::Instruction *i) :
 {
 }
 
+InterferenceGraph::Node::~Node()
+{
+}
+
 InterferenceGraph::Node* InterferenceGraph::getNode(SSA::Instruction *i)
 {
 	for (Node &n : nodes)
@@ -60,6 +64,10 @@ InterferenceGraph::Node* InterferenceGraph::popNode(int k)
 			clearMatrixEdges(*n);
 			nodes.erase(iter);
 			return n;
+		}
+		else
+		{
+			delete n;
 		}
 	}
 	return nullptr;
@@ -199,6 +207,10 @@ void InterferenceGraph::colorGraph(int k)
 							i->insertBefore(load);
 						}
 						i->replaceArg(val, new SSA::ValOperand(load));
+					}
+					else
+					{
+						delete val;
 					}
 				}
 			}

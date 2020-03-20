@@ -71,7 +71,7 @@ void allocateRegisters(SSA::Function* f)
 	// this is SUPER expensive but works as bandaid
 //	f->getParent()->cleanOperands();
 
-	printf("%d\n", numIters);
+//	printf("%d\n", numIters);
 //	if (numIters > 3)
 //	{
 //		return;
@@ -88,7 +88,7 @@ void allocateRegisters(SSA::Function* f)
 	uint lineId = f->resetLineIds() - 1;
 	f->resetRegs();
 
-GraphML::SSAtoGraphML(f->getParent(), "bust/");
+//GraphML::SSAtoGraphML(f->getParent(), "bust/");
 
 	// iterate through basic blocks and instructions in reverse order
 	for (std::list<SSA::BasicBlock*>::reverse_iterator it = BBs.rbegin(); it != BBs.rend(); ++it)

@@ -1,0 +1,19 @@
+
+main
+var a, b, c, d, e, f, g;
+array [10] arr;
+{
+	let a <- call InputNum();
+	let b <- call InputNum();
+	let c <- call InputNum();
+	let d <- call InputNum();
+	let e <- call InputNum();
+	let f <- call InputNum();
+	let g <- call InputNum();
+	if a < b then
+		let a <- b + c
+	else
+		let d <- e + f
+	fi;
+	call OutputNum(a + b + c + d + e + f + g)
+}.

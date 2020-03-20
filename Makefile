@@ -4,7 +4,7 @@
 #
 
 CC = g++
-CFLAGS = -I include/ -O0
+CFLAGS = -I include/
 EXTRA_CFLAGS = 
 
 PUBLIC_TESTCASES = $(wildcard testcases/public/*.txt)
@@ -31,5 +31,11 @@ run_public: $(EXE)
 run_custom : $(EXE)
 	./$(EXE) $(CUSTOM_TESTCASES)
 	
+run_separate_public : $(EXE)
+	$(patsubst %, ./$(EXE) %;, $(PUBLIC_TESTCASES))
+
+run_separate_custom : $(EXE)
+	$(patsubst %, ./$(EXE) %;, $(CUSTOM_TESTCASES))
+		
 clean: $(EXE)
 	rm $(EXE) graphml -r

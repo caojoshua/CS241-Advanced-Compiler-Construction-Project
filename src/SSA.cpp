@@ -246,8 +246,7 @@ std::string SSA::PhiOperand::toStr()
 	std::string s = "";
 	for (std::pair<BasicBlock*, Operand*> pair : args)
 	{
-		s += pair.second->toStr() +
-				", " + std::to_string(pair.first->getInstructions().size()) + " ";
+		s += pair.second->toStr() + " ";
 	}
 	return s + "";
 }

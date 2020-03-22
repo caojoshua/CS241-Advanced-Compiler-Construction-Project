@@ -111,6 +111,7 @@ private:
 	void pushCSEmap();
 	void popCSEmap();
 	SSA::Instruction* cseCheck(SSA::Instruction* ins);
+	void memoryKill(SSA::Instruction* ins);
 
 	// IR emitting
 	void emitFunc();

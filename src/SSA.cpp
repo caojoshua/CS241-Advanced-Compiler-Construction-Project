@@ -30,7 +30,7 @@ bool SSA::Operand::equals(Operand* other)
 	{
 		return getConst() == other->getConst();
 	}
-	else if (getType() == stackPointer && other->getType() == stackPointer)
+	else if (getType() == globalReg && other->getType() == globalReg)
 	{
 		return true;
 	}
@@ -266,19 +266,19 @@ int SSA::ConstOperand::getConst()
 	return constVal;
 }
 
-SSA::Operand* SSA::StackPointerOperand::clone()
+SSA::Operand* SSA::GlobalRegOperand::clone()
 {
-	return new StackPointerOperand;
+	return new GlobalRegOperand;
 }
 
-SSA::Operand::Type SSA::StackPointerOperand::getType()
+SSA::Operand::Type SSA::GlobalRegOperand::getType()
 {
-	return stackPointer;
+	return globalReg;
 }
 
-std::string SSA::StackPointerOperand::toStr()
+std::string SSA::GlobalRegOperand::toStr()
 {
-	return "SP";
+	return "GLOBAL REG";
 }
 
 uint SSA::Instruction::idCount = 0;

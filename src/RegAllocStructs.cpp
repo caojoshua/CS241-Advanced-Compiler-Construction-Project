@@ -166,7 +166,7 @@ void InterferenceGraph::colorGraph(int k)
 		int offset = spillSet.front().instruction->getParent()->getParent()->getLocalVariableOffset();
 		for (Node n : spillSet)
 		{
-			SSA::Instruction* addaStore = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand,
+			SSA::Instruction* addaStore = new SSA::Instruction(SSA::adda, new SSA::GlobalRegOperand,
 					new SSA::ConstOperand(offset));
 			SSA::Instruction* store = new SSA::Instruction(SSA::store,
 					new SSA::ValOperand(n.instruction), new SSA::ValOperand(addaStore));
@@ -183,7 +183,7 @@ void InterferenceGraph::colorGraph(int k)
 					// if there are cases where other stores use i
 					if (i->containsArg(val) && i->getOpcode() != SSA::adda && i->getOpcode() != SSA::store)
 					{
-						SSA::Instruction* adda = new SSA::Instruction(SSA::adda, new SSA::StackPointerOperand(), new SSA::ConstOperand(offset));
+						SSA::Instruction* adda = new SSA::Instruction(SSA::adda, new SSA::GlobalRegOperand(), new SSA::ConstOperand(offset));
 						SSA::Instruction* load = new SSA::Instruction(SSA::load, new SSA::ValOperand(adda));
 						// in the case of phi, loads need to go in previous basic block
 						if (i->getOpcode() == SSA::phi)

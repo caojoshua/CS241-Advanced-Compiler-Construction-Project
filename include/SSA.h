@@ -34,7 +34,7 @@ namespace SSA
 			std::list<Operand*> args;
 		};
 
-		enum Type {val, phi, call, constant, stackPointer};
+		enum Type {val, phi, call, constant, globalReg};
 		Operand() {}
 		virtual ~Operand() {}
 		virtual Operand* clone() = 0;
@@ -121,10 +121,10 @@ namespace SSA
 		int getConst();
 	};
 
-	class StackPointerOperand : public Operand
+	class GlobalRegOperand : public Operand
 	{
 	public:
-		StackPointerOperand() {}
+		GlobalRegOperand() {}
 		virtual Operand* clone();
 		Operand::Type getType();
 		std::string toStr();

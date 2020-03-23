@@ -11,6 +11,7 @@ function bar(x, y);
 };
 
 {
+	// foo should not be assigned a register, bar needs a register
 	let a <- call bar(a, 10);
 	call foo(a)
 }.

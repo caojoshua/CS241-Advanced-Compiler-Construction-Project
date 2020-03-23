@@ -2,6 +2,7 @@ main
 var i;
 array [10] a;
 {
+	// should only load once
 	let i <- call InputNum();
 	call OutputNum(a[i]);
 	call OutputNum(a[i])

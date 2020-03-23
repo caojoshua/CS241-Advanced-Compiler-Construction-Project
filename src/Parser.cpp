@@ -449,7 +449,9 @@ void Parser::assignment()
 			emit(currBB, adda);
 		}
 		adda = cse;
-		emit(currBB, new SSA::Instruction(SSA::store, new SSA::ValOperand(adda), exp));
+		SSA::Instruction* store = new SSA::Instruction(SSA::store, new SSA::ValOperand(adda), exp);
+		memoryKill(store);
+		emit(currBB, store);
 	}
 	// var assignment
 	else
@@ -918,6 +920,39 @@ void Parser::popCSEmap()
 	cseStack.pop_front();
 }
 
+SSA::Operand* Parser::getMemoryAccessOffset(SSA::Instruction* store) const
+{
+	if (store && (store->getOpcode() == SSA::store
+			|| store->getOpcode() == SSA::load))
+	{
+		SSA::Operand* memOp = store->getOperand1();
+		if (memOp->getType() == SSA::Operand::globalReg)
+		{
+			memOp = store->getOperand2();
+		}
+		if (memOp && memOp->getType() == SSA::Operand::val)
+		{
+			SSA::Instruction* adda = memOp->getInstruction();
+			if (adda && adda->getOpcode() == SSA::adda)
+			{
+				SSA::Operand* op1 = adda->getOperand1();
+				SSA::Operand* op2 = adda->getOperand2();
+				SSA::Operand* nonGlobal = nullptr;
+				if (op1->getType() == SSA::Operand::globalReg)
+				{
+					nonGlobal = op2;
+				}
+				else if (op2->getType() == SSA::Operand::globalReg)
+				{
+					nonGlobal = op1;
+				}
+				return nonGlobal;
+			}
+		}
+	}
+	return nullptr;
+}
+
 SSA::Instruction* Parser::cseCheck(SSA::Instruction *ins)
 {
 	SSA::Opcode op = ins->getOpcode();
@@ -949,9 +984,53 @@ SSA::Instruction* Parser::cseCheck(SSA::Instruction *ins)
 	return ins;
 }
 
-void Parser::memoryKill(SSA::Instruction* ins)
+/*
+ * kill loads in the CSE stack
+ * call when emitting a store instructions
+ * if store offset is a constant, kill all unknown loads and load w same offset constant
+ * if store offset is unknown, kill all loads
+ *    - if we did array bound checking, we can just kill loads for that array
+ */
+void Parser::memoryKill(SSA::Instruction* i)
 {
-
+	if (i && i->getOpcode() == SSA::store)
+	{
+		SSA::Operand* offset = getMemoryAccessOffset(i);
+		if (offset)
+		{
+			for (auto& cseLevel : cseStack)
+			{
+				for (auto& csePair : cseLevel)
+				{
+					if (csePair.first == SSA::load)
+					{
+						auto& insList = csePair.second;
+						auto iter = insList.begin();
+						while (iter != insList.end())
+						{
+							if (offset->getType() == SSA::Operand::constant)
+							{
+								SSA::Instruction* cseIns = *iter;
+								SSA::Operand* cseOffset = getMemoryAccessOffset(cseIns);
+								if (cseOffset && (cseOffset->getType() == SSA::Operand::val ||
+										offset->equals(cseOffset)))
+								{
+									iter = insList.erase(iter);
+									continue;
+								}
+							}
+							else if (offset->getType() == SSA::Operand::val)
+							{
+								iter = insList.erase(iter);
+								continue;
+							}
+							++iter;
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void Parser::emitFunc()

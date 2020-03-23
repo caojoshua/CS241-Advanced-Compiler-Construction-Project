@@ -110,7 +110,8 @@ private:
 	// CSE
 	void pushCSEmap();
 	void popCSEmap();
-	SSA::Instruction* cseCheck(SSA::Instruction* ins);
+	SSA::Operand* getMemoryAccessOffset(SSA::Instruction* store) const;
+	SSA::Instruction* cseCheck(SSA::Instruction* i);
 	void memoryKill(SSA::Instruction* ins);
 
 	// IR emitting

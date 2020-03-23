@@ -1,0 +1,26 @@
+main
+var i, j;
+array [3] a;
+{
+	let a[1] <- 10;
+	let a[2] <- 20;
+	let a[3] <- 30;
+	let j <- call InputNum();
+	call OutputNum(a[1]);
+	call OutputNum(a[2]);
+	call OutputNum(a[3]);
+	call OutputNum(a[j]);
+	// only kill for [2] and [j]
+	let a[2] <- 40;
+	call OutputNum(a[1]);
+	call OutputNum(a[2]);
+	call OutputNum(a[3]);
+	call OutputNum(a[j]);
+	let i <- call InputNum();
+	// kill everything
+	let a[i] <- 50;
+	call OutputNum(a[1]);
+	call OutputNum(a[2]);
+	call OutputNum(a[3]);
+	call OutputNum(a[j])
+}.

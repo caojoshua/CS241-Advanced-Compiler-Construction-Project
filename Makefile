@@ -4,14 +4,14 @@
 #
 
 CC = g++
-CFLAGS = -I include/
+CFLAGS = -I include/ -I include/SSA/
 EXTRA_CFLAGS = 
 
 PUBLIC_TESTCASES = $(wildcard testcases/public/*.txt)
 CUSTOM_TESTCASES = $(wildcard testcases/custom/*.txt)
 ALL_TESTCASES = $(PUBLIC_TESTCASES) $(CUSTOM_TESTCASES)
 
-SRCS = $(wildcard src/*.cpp)
+SRCS = $(wildcard src/*.cpp) $(wildcard src/SSA/*.cpp)
 DEPS = $(wildcard include/*.h)
 
 EXE = compiler
